@@ -35,7 +35,7 @@ class ManageIR {
                                   const string &op_type);
     Reg getelement_from_stack(int offset);
     void if_statement(const string& true_label, const string& false_label);
-    void equality(int r1, int r2, const string& op, const string& ty1, const string& ty2);
+    void equality(int* r1, int* r2, const string& op, const string& ty1, const string& ty2);
 
 
 

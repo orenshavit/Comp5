@@ -117,9 +117,6 @@ void ManageIR::zext_if_needed(int* r1, int* r2, const string &ty1, const string 
             cbr.emit("\t" + reg.name + " = zext i8 %r" + to_string(*r1) + " to i32");
             *r1 = reg.num;
         }
-        if (ty1 == "BOOL") {
-
-        }
         if (ty2 == "BYTE") {
             Reg reg = new_temp();
             cbr.emit("\t" + reg.name + " = zext i8 %r" + to_string(*r2) + " to i32");
@@ -156,23 +153,23 @@ void ManageIR::if_statement(const string &true_label, const string &false_label)
 
 }
 
-static const string& larger_type(const string& ty1, const string& ty2) {
-    if (ty1 == "INT" or ty2 == "INT"){
-            return "INT"
+static const string larger_type(const string& ty1, const string& ty2) {
+    if (ty1 == "INT" or ty2 == "INT") {
+        return "INT";
     }
-    return "BYTE"
+    return "BYTE";
 }
 
-void ManageIR::equality(int r1, int r2, const string& op, const string& ty1, const string& ty2) {
+void ManageIR::equality(int* r1, int* r2, const string& op, const string& ty1, const string& ty2) {
     Reg reg = new_temp();
-    string cmd = "\t" + reg.name + " = icmmp ";
+    string cmd = "\t" + reg.name + " = icmp ";
     if (op == "==") cmd += "eq ";
     else cmd += "ne ";
     const string& op_type = larger_type(ty1, ty2);
-    cmd += "op_type";
-
-
-    cbr.emit()
+    cmd += op_type;
+    zext_if_needed(r1, r2, ty1, ty2, op_type);
+    cmd += " %r" + to_string(*r1) + ", %r" + to_string(*r2);
+    cbr.emit(cmd);
 }
 
 
