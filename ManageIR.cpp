@@ -156,7 +156,7 @@ void ManageIR::if_statement(const string &true_label, const string &false_label)
 
 }
 
-static bool larger_type(const string& ty1, const string& ty2) {
+static const string& larger_type(const string& ty1, const string& ty2) {
 
 }
 
@@ -165,8 +165,9 @@ void ManageIR::equality(int r1, int r2, const string& op, const string& ty1, con
     string cmd = "\t" + reg.name + " = icmmp ";
     if (op == "==") cmd += "eq ";
     else cmd += "ne ";
-    string op_type;
-    if (ty1 == "INT" or ty2 == "INT") op_type = "INT";
+    const string& op_type = larger_type(ty1, ty2);
+    cmd += "op_type";
+
 
     cbr.emit()
 }
