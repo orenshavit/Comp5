@@ -1,0 +1,15 @@
+
+//int foo(int x, byte y) {
+//    int z = 3;
+//	return 3;
+//}
+
+void main() {
+    if (true) {
+        int x = 3;
+    }
+    else {
+        int y = 4;
+    }
+    return;
+}

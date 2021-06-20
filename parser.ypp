@@ -1,0 +1,477 @@
+%{
+	#include <iostream>
+	#include "output.hpp"
+	#include "SymbolsTable.hpp"
+	#include "ManageIR.hpp"
+	#include "bp.hpp"
+	#include <stdlib.h>
+	#include <assert.h>
+	#include <bits/stdc++.h>
+	using namespace std;
+	
+
+	#define P(s) cout << s << endl
+	#define MISMATCH {output::errorMismatch(yylineno); exit(0);}
+	#define NOT_NUMERIC(x) ((x) != "INT" && (x) != "BYTE") 
+	#define HANDLE_BINOP(first, second, lval, op) check_numeric(first, second);\
+	 										lval = new Node();\
+	 										lval->type = get_type_of_binop(first->type, second->type);\
+	  										ir.binop(op, &(first->reg_num), &(second->reg_num), first->type, second->type, lval);
+
+	extern int yylex();
+	extern int yylineno;
+	extern char* yytext;
+
+	void yyerror(const char*);
+	void new_var(const string& id, const string& type, Node* pNode);
+	void new_formal(const string& id, int offset, const string& type);
+	void new_table();
+	void new_func(const string& id, const string& retType, vector<string>& argTypes);
+	void remove_table();
+	void end_of_scope_operations();
+	string check_var_return_type(const string& id);
+	string check_func_return_type(const string& id);
+	void check_numeric(Node* x, Node* y);
+	string get_type_of_binop(string x, string y);
+	TableEntry* get_entry(const string& id);
+
+	stack<SymbolsTable*> tables_stack;
+	stack<int> offset_stack;
+
+	FunctionDecl current_func;
+	stack<string> called_arg_types;
+	stack<pair<string, int>> called_exps; // <type of Exp : string, number of register that hols the Exp : int>
+
+	unordered_map<string, TableEntry*> hash_ids;
+	unordered_map<string, FuncTypes> hash_funcs;
+	stack<bool> in_while;
+	stack<bool> in_switch;
+
+	CodeBuffer& cbr = CodeBuffer::instance();
+	ManageIR ir;
+
+%}
+
+%token VOID 
+%token INT 
+%token BYTE 
+%token B 
+%token BOOL 
+%left OR 
+%left AND 
+%token RETURN 
+%token WHILE 
+%token BREAK 
+%token CONTINUE 
+%right SWITCH 
+%right CASE 
+%right DEFAULT 
+%token SC 
+%token COMMA 
+%right COLON 
+%token ASSIGN 
+%token ID 
+%token STRING 
+%token ILLEGAL 
+%left LPAREN RPAREN LBRACE RBRACE 
+%nonassoc IF 
+%nonassoc ELSE 
+%left TRUE FALSE 
+%left NUM 
+%left EQUALITY
+%nonassoc RELATION
+%right NOT
+%left ADD SUB
+%left MUL DIV
+
+%%
+
+Program : Funcs {}
+		;
+
+FuncDecl : RetType MarkerID LPAREN Formals RPAREN MarkerLBRACE Statements RBRACE {
+																	ir.end_func(current_func.ret_type);
+																	current_func = FunctionDecl();
+																	end_of_scope_operations();
+																	
+																	}
+		;
+
+MarkerID : ID {
+		current_func.id = $1->id;
+		};
+
+MarkerLBRACE : LBRACE {
+		offset_stack.push(0);
+		assert(!tables_stack.empty());
+		for (uint i = 0; i < current_func.arg_names.size(); i++) {
+				new_formal(current_func.arg_names.at(i), -i-1, current_func.arg_types.at(i)); 
+		}
+		current_func.arg_types = vector<string>();
+}
+
+Funcs : {}
+		| FuncDecl Funcs {}
+		;
+
+RetType : Type { current_func.ret_type = $1->type;}
+		| VOID  {current_func.ret_type = "VOID";}
+		;
+Formals :  FormalsList  { new_func(current_func.id, current_func.ret_type, current_func.arg_types);	}
+		| {new_func(current_func.id, current_func.ret_type, current_func.arg_types);}
+		 ;
+FormalsList : FormalDecl  {}
+			| FormalDecl COMMA FormalsList {}
+			;
+FormalDecl : Type ID  {
+		if (current_func.id == $2->id) {
+			output::errorDef(yylineno, $2->id);
+			exit(0);
+		}
+		current_func.arg_types.push_back($1->type);
+		current_func.arg_names.push_back($2->id);
+}
+				;
+Statements : Statement  {}
+			| Statements Statement {}
+			;
+Statement : LBRACE Statements RBRACE {
+				end_of_scope_operations();
+				}
+			| Type ID SC  {
+				ir.assign_reg(ir.to_llvm_type($1->type), 0, $2);
+				new_var($2->id, $1->type, $2);
+				}
+			| Type ID ASSIGN Exp SC {		
+					string ltype = $1->type;
+					string rtype = $4->type;
+					if (ltype != rtype) {
+						if (!(ltype == "INT" && rtype == "BYTE")) MISMATCH 
+					}
+					if (ltype == "BOOL") {
+						ir.assign_reg(ir.to_llvm_type($1->type), $4->value, $2);
+					}
+
+					new_var($2->id, $1->type, $2);
+			}
+			| ID ASSIGN Exp SC {  
+				string ltype = check_var_return_type($1->id);
+				string rtype = $3->type;
+				if (ltype != rtype) {
+					if (!(ltype == "INT" && rtype == "BYTE")) MISMATCH 
+				}
+			}
+			| Call SC {}
+			| RETURN SC {
+				if (current_func.ret_type != "VOID") MISMATCH
+			}
+			| RETURN Exp SC {
+				if (current_func.ret_type != $2->type || current_func.ret_type == "VOID") MISMATCH
+			}
+			| IF LPAREN MarkerBoolExp RPAREN M Statement MarkerELSE M Statement {
+				ir.if_statement(dynamic_cast<M*>($5)->label, dynamic_cast<M*>($8)->label);
+				end_of_scope_operations();
+				}
+			| IF LPAREN MarkerBoolExp RPAREN  M Statement {
+					end_of_scope_operations();
+					}
+			| WHILE MarkerWhile LPAREN MarkerBoolExp RPAREN Statement { in_while.pop(); end_of_scope_operations(); }
+			| BREAK SC {
+				if (in_while.empty() && in_switch.empty()) {
+					output::errorUnexpectedBreak(yylineno);
+					exit(0);
+				}
+			}
+			| CONTINUE SC { 
+				if (in_while.empty()) {
+					output::errorUnexpectedContinue(yylineno);
+					exit(0);
+				}
+			}
+			| SWITCH MarkerSwitch LPAREN MarkerNumericExp RPAREN LBRACE CaseList RBRACE { in_switch.pop(); end_of_scope_operations(); }
+			;
+M : {
+	$$ = new M(cbr.genLabel());
+};
+
+N : {
+	$$ = new N();
+	N.next_list = cbr.makelist(next_quad());
+};
+
+MarkerWhile : { in_while.push(true); } ;
+ 
+MarkerSwitch : { in_switch.push(true); } ;
+
+MarkerNumericExp : Exp {
+	if (NOT_NUMERIC($1->type)) MISMATCH
+} ;
+
+MarkerBoolExp : Exp {
+	if ($1->type != "BOOL") MISMATCH
+};
+
+MarkerELSE : ELSE {end_of_scope_operations();};
+
+Call : ID LPAREN ExpList RPAREN { 
+								$$ = new Node();
+								$$->type = check_func_return_type($1->id);
+								ir.call_func($1->id, $$->type, called_exps);
+
+								}
+		| ID LPAREN RPAREN { $$ = new Node();
+								$$->type = check_func_return_type($1->id);
+								ir.call_func($1->id, $$->type, called_exps); }
+		;
+		
+ExpList : Exp  {
+			called_arg_types.push($1->type);
+			called_exps.push(pair<string, int>($1->type, $1->reg_num));
+			}
+		| Exp COMMA ExpList {
+			called_arg_types.push($1->type);
+			called_exps.push(pair<string, int>($1->type, $1->reg_num));
+			}
+		;
+Type : INT { 
+		$$ = new Node();
+		$$->type = "INT";
+		}
+		| BYTE  {
+				$$ = new Node();
+				$$->type = "BYTE";
+				}
+		| BOOL  {
+				$$ = new Node();
+				$$->type = "BOOL";
+				}
+		;
+Exp : LPAREN Exp RPAREN {
+		$$ = new Node();
+		$$->type = $2->type;
+		$$->reg_num = $2->reg_num;
+}
+		| Exp MUL Exp {HANDLE_BINOP($1, $3, $$, "MUL")} 
+		| Exp DIV Exp {HANDLE_BINOP($1, $3, $$, "DIV")} 
+		| Exp ADD Exp {HANDLE_BINOP($1, $3, $$, "ADD")} 
+		| Exp SUB Exp {HANDLE_BINOP($1, $3, $$, "SUB")} 
+		| Exp RELATION Exp {
+			check_numeric($1, $3);
+			$$ = new Node();
+			$$->type = "BOOL";}
+		| Exp EQUALITY Exp {
+				check_numeric($1, $3);
+				$$ = new Node();
+				$$->type = "BOOL";
+				ir.equality($1->reg_num, $2->reg_num, $1->type, $3->type);
+				}
+		| Exp AND Exp {if ($1->type != "BOOL" || $3->type != "BOOL") MISMATCH
+				$$ = new Node();
+				$$->type = "BOOL";}
+		| Exp OR Exp {
+				if ($1->type != "BOOL" || $3->type != "BOOL") MISMATCH
+				$$ = new Node();
+				$$->type = "BOOL";
+		}
+		| NUM {
+				//$$ = new Node();
+				$$->type = "INT";
+				ir.assign_reg("i32", $$->value, $$);
+				}
+		| ID { 	
+			$$ = new Node();
+			$$->type = check_var_return_type($1->id);
+			ir.load_local_var(get_entry($1->id)->offset, $$->type, $$);
+		 }
+		| Call {$$ = new Node(); $$->type = $1->type; }
+		| NUM B {
+			if ($1->value > 255) {
+				output::errorByteTooLarge(yylineno, to_string($1->value));
+				exit(0);
+			} 
+			//$$ = new Node();
+			$$->type = "BYTE";
+			ir.assign_reg("i8", $$->value, $$);
+			}
+		| STRING {$$ = new Node();
+				$$->type = "STRING";}
+		| TRUE { 
+				$$ = new BiNode();
+				$$->type = "BOOL";
+				$$->value = 1;
+				}
+		| FALSE {$$ = new BiNode();
+				$$->type = "BOOL";
+				$$->value = 0;}
+		| NOT Exp {
+				if ($2->type != "BOOL") MISMATCH
+				$$ = new Node();
+				$$->type = "BOOL";
+		}
+		;
+
+CaseDecl : CASE NUM COLON Statements {}
+		;
+
+CaseList : CaseDecl CaseList {}
+		| CaseDecl {}
+		| DEFAULT COLON Statements {}
+		;
+
+%%
+
+void yyerror(const char* c) {
+	if (string(c) == "syntax error")
+		output::errorSyn(yylineno);
+	else
+		output::errorLex(yylineno); 
+	exit(0);
+}
+
+void check_numeric(Node* x, Node* y) {
+	if (NOT_NUMERIC(x->type) || NOT_NUMERIC(y->type)) MISMATCH
+}
+
+TableEntry* get_entry(const string& id) {
+	return hash_ids.find(id)->second;
+}
+
+string get_type_of_binop(string x, string y) {
+	if (x == "INT" || y == "INT") return "INT";
+	return "BYTE";
+}
+
+string check_var_return_type(const string& id) {
+	if (hash_ids.find(id) == hash_ids.end() || hash_funcs.find(id) != hash_funcs.end()) {
+		output::errorUndef(yylineno, id);
+		exit(0);
+	}
+	return hash_ids[id]->type;
+}
+
+string check_func_return_type(const string& id) {
+	// 1. Checks that identifier was defined.
+	// 2. Checks that the identifier is a function.
+	if (hash_ids.find(id) == hash_ids.end() || hash_funcs.find(id) == hash_funcs.end()) {
+		output::errorUndefFunc(yylineno, id);
+		exit(0);
+	}
+	vector<string> exp_func_args = hash_funcs[id].arg_types;
+	if (exp_func_args.size() != called_arg_types.size()) {
+		output::errorPrototypeMismatch(yylineno, id, exp_func_args);
+		exit(0);
+	}
+	for (uint i = 0; i < exp_func_args.size(); i++) {
+		string exp_type = exp_func_args.at(i);
+		string called_type = called_arg_types.top();
+		called_arg_types.pop();
+		if (exp_type != called_type) {
+			if (!(exp_type == "INT" && called_type == "BYTE")) {
+
+				output::errorPrototypeMismatch(yylineno, id, exp_func_args);
+				exit(0);
+			}
+		}
+	}
+	called_arg_types = stack<string>();
+	return hash_funcs[id].ret_type;
+}
+
+static void check_id_def(const string& id) {
+	if (hash_ids.find(id) != hash_ids.end()) {
+			output::errorDef(yylineno, id);
+			exit(0);
+	}
+}
+
+static void add_id_to_ids(const string& id, TableEntry* p_entry) {
+	hash_ids[id] = p_entry;
+}
+
+static void add_func_to_hash(const string& id, const string& ret_type, vector<string>& arg_types) {
+		FuncTypes f(ret_type, arg_types);
+		hash_funcs[id] = f;
+}
+
+void new_formal(const string& id, int offset, const string& type) {
+	check_id_def(id);
+	TableEntry* p_entry = tables_stack.top()->insert(id, offset, type);
+	add_id_to_ids(id, p_entry);
+}
+
+void new_var(const string& id, const string& type, Node* pNode) {
+	check_id_def(id);
+	TableEntry* p_entry = tables_stack.top()->insert(id, offset_stack.top(), type);
+	ir.store_local_var(offset_stack.top(), type, pNode);
+	offset_stack.top()++;
+	add_id_to_ids(id, p_entry);
+}
+
+void new_func(const string& id, const string& ret_type, vector<string>& arg_types) {
+	check_id_def(id);
+	add_id_to_ids(id, nullptr);
+	add_func_to_hash(id, ret_type, arg_types);
+	tables_stack.top()->insert(id, 0, output::makeFunctionType(ret_type, arg_types));
+	ir.def_func(id, ret_type, arg_types);
+}
+
+void new_table() {
+		SymbolsTable* parent;
+		if (!tables_stack.empty())
+				parent = tables_stack.top();
+		else
+				parent = nullptr;
+		SymbolsTable* symbol_table = new SymbolsTable(parent);
+		tables_stack.push(symbol_table);
+		assert(!offset_stack.empty());
+		offset_stack.push(offset_stack.top());
+}
+
+void remove_table() {
+		if (tables_stack.empty()) {
+				cout << "Tables Stack is empty!" << endl;
+				return;
+		}
+		auto ptr = tables_stack.top();
+		for (auto entry : ptr->entries) {
+				hash_ids.erase(entry->id);
+				delete entry;
+		}
+		tables_stack.pop();
+		delete ptr;
+}
+
+void end_of_scope_operations() {
+		// output::endScope();
+		// tables_stack.top()->print_ids();
+		remove_table();
+		if (!offset_stack.empty()) {
+				offset_stack.pop();
+		}
+}
+
+int main() {
+		offset_stack.push(0);
+		new_table();
+		vector<string> print_args = {"STRING"};
+		new_func("print", "VOID", print_args);
+		vector<string> printi_args = {"INT"};
+		new_func("printi", "VOID", printi_args);
+		ir.emit_print_functions();
+		yyparse();
+		SymbolsTable* global_symbol_table = tables_stack.top();
+		bool found = false;
+		for (TableEntry* entry : global_symbol_table->entries) {
+			if (entry->id == "main" && entry->type == "()->VOID")
+				found = true;
+		}
+		if (not found) {
+			output::errorMainMissing();
+			exit(0);
+		}
+		end_of_scope_operations();
+		
+		cbr.printCodeBuffer();
+
+}
+
