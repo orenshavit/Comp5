@@ -157,7 +157,10 @@ void ManageIR::if_statement(const string &true_label, const string &false_label)
 }
 
 static const string& larger_type(const string& ty1, const string& ty2) {
-
+    if (ty1 == "INT" or ty2 == "INT"){
+            return "INT"
+    }
+    return "BYTE"
 }
 
 void ManageIR::equality(int r1, int r2, const string& op, const string& ty1, const string& ty2) {
