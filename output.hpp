@@ -14,6 +14,7 @@ class Node {
     string type;
     long value;
     int reg_num;
+    vector<pair<int,BranchLabelIndex>> next_list;
     virtual ~Node() = default;
 };
 
@@ -25,18 +26,25 @@ public:
 
 class M : public Node {
 public:
-    const string& label; // like quad
-//    pair<int,BranchLabelIndex> label;
-    explicit M(const string& label) : Node(), label(label) {}
-    ~M() override = default;
+    string label; // like quad
+    M() : Node() {
+        label = CodeBuffer::instance().genLabel();
+        /*
+        int loc = CodeBuffer::instance().emit("\tbr label @");
+        auto list = CodeBuffer::instance().makelist(pair<int,BranchLabelIndex>(loc, FIRST));
+        label = CodeBuffer::instance().genLabel();
+        CodeBuffer::instance().bpatch(list, label);
+         */
+    }
+    //~M() override = default;
 };
 
-class N : public Node {
-public:
-    vector<pair<int,BranchLabelIndex>> next_list;
-    explicit N() : Node() {}
-    ~N() override = default;
-};
+//class N : public Node {
+//public:
+//    vector<pair<int,BranchLabelIndex>> next_list;
+//    explicit N() : Node() {}
+//    //~N() override = default;
+//};
 
 
 class Id : public Node {

@@ -1,2 +1,8 @@
-./hw5 < ot1.in > ot1.llvm
-lli ot1.llvm
+#! /bin/sh
+
+for i in $(ls -v *.in | sed "s/\.in//g")
+do
+	./hw5 < $i.in > $i.llvm
+  	lli $i.llvm > $i.res -fatal-warnings
+	#diff $i.res $i.out
+done

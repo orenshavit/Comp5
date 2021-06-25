@@ -80,7 +80,7 @@ default return DEFAULT;
 {equality} {
     yylval = new Node();
     yylval->type = string(yytext);
-        return EQUALITY;
+    return EQUALITY;
 }
 = return ASSIGN;
 \+ return ADD;

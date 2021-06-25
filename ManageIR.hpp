@@ -34,8 +34,21 @@ class ManageIR {
     void zext_if_needed(int* r1, int* r2, const string &ty1, const string &ty2,
                                   const string &op_type);
     Reg getelement_from_stack(int offset);
-    void if_statement(const string& true_label, const string& false_label);
-    void equality(int* r1, int* r2, const string& op, const string& ty1, const string& ty2);
+    void bpatch_if_else_statement(Node* s,
+                                  Node* s1,
+                                  Node* n,
+                                  Node* s2,
+                                  BiNode* p_binode,
+                                  const string &true_label,
+                                  const string &false_label);
+    void equality(BiNode* p_binode,
+                  int* r1,
+                  int* r2,
+                  const string& op,
+                  const string& ty1,
+                  const string& ty2);
+    void try_if_else(BiNode* p_binode);
+    void gen_label_and_goto_it();
 
 
 

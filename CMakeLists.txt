@@ -39,7 +39,7 @@ add_custom_command(
 add_custom_target(
         # Build this target to run tests (only build don't run)
         TESTS
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests
+        WORKING_DIRECTORY ${TEST_DIRECTORY}
         COMMAND ./run.sh    # <<<<<<<<<<<<<<<<<<<< runs tests bash file
         DEPENDS ${TEST_DIRECTORY}/hw5
 )
@@ -49,6 +49,13 @@ add_custom_target(
         CleanFlexBisonFiles
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         COMMAND rm -f lex.yy.c parser.tab.*pp
+)
+
+add_custom_target(
+        # Build this target to clean flex and bison output (only build don't run)
+        CleanTestDir
+        WORKING_DIRECTORY ${TEST_DIRECTORY}
+        COMMAND rm -f *.res *.llvm hw5
 )
 
 # compile lex.yy.c as c++

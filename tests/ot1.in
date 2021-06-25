@@ -1,15 +1,12 @@
 
-//int foo(int x, byte y) {
-//    int z = 3;
-//	return 3;
-//}
-
 void main() {
-    if (true) {
-        int x = 3;
-    }
-    else {
-        int y = 4;
-    }
-    return;
+    int x = 1;
+
+    //if (x == 1)
+   //     printi(4);
+   // else
+  //      printi(5);
+  int y = 1;
+  int z = 1;
+
 }
