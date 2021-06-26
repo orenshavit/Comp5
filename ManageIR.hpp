@@ -60,4 +60,5 @@ public:
     void return_exp(int reg_num, const string& ty);
     void icmp_bool_var(BiNode* p_binode, int reg_num);
     int get_bool(BiNode* p_binode);
+    void emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* given_m);
 };

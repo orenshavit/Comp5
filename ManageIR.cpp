@@ -283,5 +283,35 @@ void ManageIR::bpatch_while(Node *s, const string &m1_label, BiNode *b, const st
     last_bpatch = true;
 }
 
+void ManageIR::emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* given_m) {
+    auto m = dynamic_cast<M*>(given_m);
+    cbr.bpatch(n->next_list, m->label);
+    auto cl = dynamic_cast<CL*>(given_cl);
+    string ty = exp->type;
+    int exp_reg_num = exp->reg_num;
+
+    string llvm_ty = to_llvm_type(ty);
+    string cmd = "\tswitch " +
+            llvm_ty + " " +
+            num2name(exp_reg_num) +
+            ", label "+
+            cl->default_label +" [\n";
+
+    int value;
+    string label;
+    while(!cl->value_list.empty()) {
+        value = cl->value_list.top();
+        cl->value_list.pop();
+
+        label = cl->quad_list.top();
+        cl->quad_list.pop();
+
+        cmd += "\t\t" + llvm_ty + " " + to_string(value) + ", label " + label + "\n]";
+    }
+    cbr.emit(cmd);
+    s->next_list = cl->next_list;
+
+}
+
 
 Reg::Reg(int num, string name) : num(num), name(std::move(name)) {}

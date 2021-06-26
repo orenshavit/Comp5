@@ -20,7 +20,7 @@ add_custom_command(
         OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/parser.tab.cpp
         BYPRODUCTS ${CMAKE_CURRENT_SOURCE_DIR}/parser.tab.hpp
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMAND bison -d parser.ypp
+        COMMAND bison -d parser.ypp --Wcounterexamples
         DEPENDS parser.ypp
 )
 

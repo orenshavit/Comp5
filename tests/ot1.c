@@ -1,13 +1,13 @@
 
 
 void main() {
-    int x = 1;
-    byte y = 1b;
-    while (x < 10 and y < 5b) {
-        x = x + x;
-        y = y + 1b;
+    int x = 0;
+    while (x < 10) {
+        x = x + 1;
+        if (x == 2)
+            continue;
+        printi(x);
     }
-    printi(x);
-    int z = y;
-    printi(z);
+
+
 }

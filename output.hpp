@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <stack>
 #include "bp.hpp"
 
 using namespace std;
@@ -31,6 +32,24 @@ public:
         label = CodeBuffer::instance().genLabel();
     }
     //~M() override = default;
+};
+
+
+class CL : public Node {
+public:
+    stack<string> quad_list;
+    stack<int> value_list;
+    vector<pair<int,BranchLabelIndex>> next_list;
+    string default_label;
+    CL() : Node() {}
+};
+
+class C : public Node {
+public:
+    long value;
+    string quad;
+    vector<pair<int,BranchLabelIndex>> next_list;
+    C() : Node() {}
 };
 
 //class N : public Node {

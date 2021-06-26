@@ -50,6 +50,8 @@
 	CodeBuffer& cbr = CodeBuffer::instance();
 	ManageIR ir;
 
+	vector<pair<int,BranchLabelIndex>> while_list = {};
+
 %}
 
 %token VOID 
@@ -202,8 +204,10 @@ Statement : LBRACE Statements RBRACE {
 					}
 
 			| WHILE MarkerWhile LPAREN N M MarkerBoolExp RPAREN M Statement N {
-				cbr.bpatch($4->next_list, (dynamic_cast<M*>($5))->label);
-				ir.bpatch_while($$, (dynamic_cast<M*>($5))->label, dynamic_cast<BiNode*>($6), (dynamic_cast<M*>($8))->label, $10);
+				string m1_label = (dynamic_cast<M*>($5))->label;
+				cbr.bpatch(while_list, m1_label);
+				cbr.bpatch($4->next_list, m1_label);
+				ir.bpatch_while($$, m1_label, dynamic_cast<BiNode*>($6), (dynamic_cast<M*>($8))->label, $10);
 				in_while.pop();
 				end_of_scope_operations();
 				}
@@ -218,11 +222,15 @@ Statement : LBRACE Statements RBRACE {
 					output::errorUnexpectedContinue(yylineno);
 					exit(0);
 				}
-				// int loc = cbr.emit("\tbr label @");
-				// auto while_list = cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST));
+				int loc = cbr.emit("\tbr label @");
+				while_list = cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST));
 
 			}
-			| SWITCH MarkerSwitch LPAREN MarkerNumericExp RPAREN LBRACE CaseList RBRACE { in_switch.pop(); end_of_scope_operations(); }
+			| SWITCH MarkerSwitch LPAREN MarkerNumericExp N RPAREN LBRACE CaseList RBRACE M {
+				ir.emit_switch($$, $4, $5, $8, $10);
+				in_switch.pop();
+				end_of_scope_operations();
+				 }
 			;
 
 
@@ -411,12 +419,38 @@ Exp :
 		}
 		;
 
-CaseDecl : CASE NUM COLON Statements {}
+CaseDecl : CASE NUM COLON M Statements N {
+	string quad = dynamic_cast<M*>($4)->label;
+	$$ = new C();
+	dynamic_cast<C*>($$)->quad = quad;
+	dynamic_cast<C*>($$)->value = $2->value;
+	dynamic_cast<C*>($$)->next_list = $6->next_list;
+}
 		;
 
-CaseList : CaseDecl CaseList {}
-		| CaseDecl {}
-		| DEFAULT COLON Statements {}
+CaseList : CaseDecl CaseList {
+	$$ = new CL();
+	auto cl1 = dynamic_cast<CL*>($2);
+	auto c = dynamic_cast<C*>($1);
+	dynamic_cast<CL*>($$)->quad_list = cl1->quad_list;
+	dynamic_cast<CL*>($$)->quad_list.push(c->quad);
+	dynamic_cast<CL*>($$)->value_list = cl1->value_list;
+	dynamic_cast<CL*>($$)->value_list.push(c->value);
+	dynamic_cast<CL*>($$)->next_list = cbr.merge(cl1->next_list, c->next_list);
+	dynamic_cast<CL*>($$)->default_label = cl1->default_label;}
+		| CaseDecl {
+			$$ = new CL();
+			auto c = dynamic_cast<C*>($1);
+			dynamic_cast<CL*>($$)->quad_list.push(c->quad);
+			dynamic_cast<CL*>($$)->value_list.push(c->value);
+			dynamic_cast<CL*>($$)->next_list = c->next_list;
+		}
+		| DEFAULT COLON M Statements N {
+			string quad = dynamic_cast<M*>($3)->label;
+			$$ = new CL();
+			dynamic_cast<CL*>($$)->default_label = quad;
+			dynamic_cast<CL*>($$)->next_list = $5->next_list;
+		}
 		;
 
 %%
