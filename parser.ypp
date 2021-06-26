@@ -137,21 +137,23 @@ Statements : Statement {
 						$$ = new Node();
 						$$->next_list = $1->next_list;
 						}
-			| Statements N M Statement {
-				cbr.bpatch($1->next_list, dynamic_cast<M*>($3)->label);
-				cbr.bpatch($2->next_list, dynamic_cast<M*>($3)->label);
+			| Statements M Statement {
+				cbr.bpatch($1->next_list, dynamic_cast<M*>($2)->label);
+				//cbr.bpatch($2->next_list, dynamic_cast<M*>($3)->label);
 				$$ = new Node();
-				$$->next_list = $4->next_list;
+				$$->next_list = $3->next_list;
 				cbr.emit("");
 			}
 			;
 Statement : LBRACE Statements RBRACE {
 				end_of_scope_operations();
+				ir.empty_goto($$);
 				}
 			| Type ID SC  {
 
 				ir.assign_reg(ir.to_llvm_type($1->type), 0, $2);
 				new_var($2->id, $1->type, $2, $1->type);
+				ir.empty_goto($$);
 				}
 
 
@@ -165,7 +167,9 @@ Statement : LBRACE Statements RBRACE {
                 if (ltype == "BOOL") {
                     $2->reg_num = ir.get_bool(dynamic_cast<BiNode*>($4));
                 }
-                new_var($2->id, ltype, $2, rtype);}
+                new_var($2->id, ltype, $2, rtype);
+				ir.empty_goto($$);
+				}
 
 
 			| ID ASSIGN Exp SC {  
@@ -178,13 +182,17 @@ Statement : LBRACE Statements RBRACE {
                     $2->reg_num = ir.get_bool(dynamic_cast<BiNode*>($3));
                 }
                 ir.store_local_var(get_offset($1->id), ltype, $1, rtype);
+				ir.empty_goto($$);
 				}
 
 
 
-			| Call SC {}
+			| Call SC {
+				ir.empty_goto($$);
+			}
 			| RETURN SC {
 				if (current_func.ret_type != "VOID") MISMATCH
+				// ? empty_goto ?
 			}
 			| RETURN Exp SC {
 				if (current_func.ret_type != $2->type || current_func.ret_type == "VOID") MISMATCH
@@ -193,29 +201,34 @@ Statement : LBRACE Statements RBRACE {
 					$2->reg_num = bool_reg_num;
 				}
 				ir.return_exp($2->reg_num, $2->type);
+				// ? empty_goto ?
 			}
-			| IF LPAREN MarkerBoolExp RPAREN M Statement MarkerELSE N M Statement N {
-				ir.bpatch_if_else_statement($$, $8, dynamic_cast<BiNode*>($3), (dynamic_cast<M*>($5))->label, (dynamic_cast<M*>($9))->label, $11);
+			| IF LPAREN MarkerBoolExp RPAREN M Statement MarkerELSE N M Statement {
+				ir.bpatch_if_else_statement($$, $8, dynamic_cast<BiNode*>($3), (dynamic_cast<M*>($5))->label, (dynamic_cast<M*>($9))->label, $6, $10);
 				end_of_scope_operations();
+				ir.empty_goto($$);
 				}
-			| IF LPAREN MarkerBoolExp RPAREN M Statement N {
-			        ir.bpatch_if_statement($$, dynamic_cast<BiNode*>($3), (dynamic_cast<M*>($5))->label, $7);
+			| IF LPAREN MarkerBoolExp RPAREN M Statement {
+			        ir.bpatch_if_statement($$, dynamic_cast<BiNode*>($3), (dynamic_cast<M*>($5))->label, $6);
+					ir.empty_goto($$);
 					end_of_scope_operations();
 					}
 
-			| WHILE MarkerWhile LPAREN N M MarkerBoolExp RPAREN M Statement N {
+			| WHILE MarkerWhile LPAREN N M MarkerBoolExp RPAREN M Statement {
 				string m1_label = (dynamic_cast<M*>($5))->label;
 				cbr.bpatch(while_list, m1_label);
 				cbr.bpatch($4->next_list, m1_label);
-				ir.bpatch_while($$, m1_label, dynamic_cast<BiNode*>($6), (dynamic_cast<M*>($8))->label, $10);
+				ir.bpatch_while($$, m1_label, dynamic_cast<BiNode*>($6), (dynamic_cast<M*>($8))->label, $9);
 				in_while.pop();
 				end_of_scope_operations();
+				ir.empty_goto($$);
 				}
 			| BREAK SC {
 				if (in_while.empty() && in_switch.empty()) {
 					output::errorUnexpectedBreak(yylineno);
 					exit(0);
 				}
+				// ir.empty_goto($$); ?
 			}
 			| CONTINUE SC { 
 				if (in_while.empty()) {
@@ -230,6 +243,7 @@ Statement : LBRACE Statements RBRACE {
 				ir.emit_switch($$, $4, $5, $8, $10);
 				in_switch.pop();
 				end_of_scope_operations();
+				ir.empty_goto($$);
 				 }
 			;
 
