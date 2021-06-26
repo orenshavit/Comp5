@@ -218,6 +218,9 @@ Statement : LBRACE Statements RBRACE {
 					output::errorUnexpectedContinue(yylineno);
 					exit(0);
 				}
+				// int loc = cbr.emit("\tbr label @");
+				// auto while_list = cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST));
+
 			}
 			| SWITCH MarkerSwitch LPAREN MarkerNumericExp RPAREN LBRACE CaseList RBRACE { in_switch.pop(); end_of_scope_operations(); }
 			;
