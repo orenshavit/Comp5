@@ -22,7 +22,7 @@
 	extern char* yytext;
 
 	void yyerror(const char*);
-	void new_var(const string& id, const string& type, Node* pNode);
+	void new_var(const string& id, const string& ltype, Node* pNode, const string& rtype);
 	void new_formal(const string& id, int offset, const string& type);
 	void new_table();
 	void new_func(const string& id, const string& retType, vector<string>& argTypes);
@@ -33,6 +33,7 @@
 	void check_numeric(Node* x, Node* y);
 	string get_type_of_binop(string x, string y);
 	TableEntry* get_entry(const string& id);
+	int get_offset(const string& id);
 
 	stack<SymbolsTable*> tables_stack;
 	stack<int> offset_stack;
@@ -146,28 +147,39 @@ Statement : LBRACE Statements RBRACE {
 				end_of_scope_operations();
 				}
 			| Type ID SC  {
+
 				ir.assign_reg(ir.to_llvm_type($1->type), 0, $2);
-				new_var($2->id, $1->type, $2);
+				new_var($2->id, $1->type, $2, $1->type);
 				}
-			| Type ID ASSIGN Exp SC {		
-					string ltype = $1->type;
-					string rtype = $4->type;
-					if (ltype != rtype) {
-						if (!(ltype == "INT" && rtype == "BYTE")) MISMATCH 
-					}
-					if (ltype == "BOOL") {
-						int bool_reg_num = ir.get_bool(dynamic_cast<BiNode*>($4));
-						$2->reg_num = bool_reg_num;
-					}
-					new_var($2->id, ltype, $2);
-			}
+
+
+			| Type ID ASSIGN Exp SC {
+			    cbr.emit("; S->Type ID ASSIGN Exp SC");
+                string ltype = $1->type;
+                string rtype = $4->type;
+                if (ltype != rtype) {
+                    if (!(ltype == "INT" && rtype == "BYTE")) MISMATCH
+                }
+                if (ltype == "BOOL") {
+                    $2->reg_num = ir.get_bool(dynamic_cast<BiNode*>($4));
+                }
+                new_var($2->id, ltype, $2, rtype);}
+
+
 			| ID ASSIGN Exp SC {  
 				string ltype = check_var_return_type($1->id);
 				string rtype = $3->type;
 				if (ltype != rtype) {
 					if (!(ltype == "INT" && rtype == "BYTE")) MISMATCH 
 				}
-			}
+				if (ltype == "BOOL") {
+                    $2->reg_num = ir.get_bool(dynamic_cast<BiNode*>($3));
+                }
+                ir.store_local_var(get_offset($1->id), ltype, $1, rtype);
+				}
+
+
+
 			| Call SC {}
 			| RETURN SC {
 				if (current_func.ret_type != "VOID") MISMATCH
@@ -184,10 +196,17 @@ Statement : LBRACE Statements RBRACE {
 				ir.bpatch_if_else_statement($$, $8, dynamic_cast<BiNode*>($3), (dynamic_cast<M*>($5))->label, (dynamic_cast<M*>($9))->label, $11);
 				end_of_scope_operations();
 				}
-			| IF LPAREN MarkerBoolExp RPAREN M Statement {
+			| IF LPAREN MarkerBoolExp RPAREN M Statement N {
+			        ir.bpatch_if_statement($$, dynamic_cast<BiNode*>($3), (dynamic_cast<M*>($5))->label, $7);
 					end_of_scope_operations();
 					}
-			| WHILE MarkerWhile LPAREN MarkerBoolExp RPAREN Statement { in_while.pop(); end_of_scope_operations(); }
+
+			| WHILE MarkerWhile LPAREN N M MarkerBoolExp RPAREN M Statement N {
+				cbr.bpatch($4->next_list, (dynamic_cast<M*>($5))->label);
+				ir.bpatch_while($$, (dynamic_cast<M*>($5))->label, dynamic_cast<BiNode*>($6), (dynamic_cast<M*>($8))->label, $10);
+				in_while.pop();
+				end_of_scope_operations();
+				}
 			| BREAK SC {
 				if (in_while.empty() && in_switch.empty()) {
 					output::errorUnexpectedBreak(yylineno);
@@ -214,7 +233,8 @@ N : {
 	$$->next_list = cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST));
 };
 
-MarkerWhile : { in_while.push(true); } ;
+MarkerWhile : { in_while.push(true);
+ } ;
  
 MarkerSwitch : { in_switch.push(true); } ;
 
@@ -230,18 +250,19 @@ MarkerBoolExp : Exp {
 MarkerELSE : ELSE {end_of_scope_operations();};
 
 Call : ID LPAREN ExpList RPAREN { 
-								const string& type =  check_func_return_type($1->id);
-								if (type == "BOOL") {
-									$$ = new BiNode();
-								}
-								$$->type = type;
-								$$->reg_num = ir.call_func($1->id, $$->type, called_exps);
-								if (type == "BOOL") {
-								    ir.icmp_bool_var((BiNode*)$$, $$->reg_num);
-									$$->reg_num  = ir.get_bool(dynamic_cast<BiNode*>($$));
-								}
+								cbr.emit("; Call->ID...");
+                                const string& type =  check_func_return_type($1->id);
+                                if (type == "BOOL") {
+                                    $$ = new BiNode();
+                                }
+                                $$->type = type;
+                                $$->reg_num = ir.call_func($1->id, $$->type, called_exps);
+                                if (type == "BOOL") {
+                                    ir.icmp_bool_var((BiNode*)$$, $$->reg_num);
+                                }
 	}
 		| ID LPAREN RPAREN {
+		                        cbr.emit("; Call->ID...");
 								const string& type =  check_func_return_type($1->id);
                                 if (type == "BOOL") {
                                     $$ = new BiNode();
@@ -250,7 +271,6 @@ Call : ID LPAREN ExpList RPAREN {
                                 $$->reg_num = ir.call_func($1->id, $$->type, called_exps);
                                 if (type == "BOOL") {
                                     ir.icmp_bool_var((BiNode*)$$, $$->reg_num);
-                                    $$->reg_num  = ir.get_bool(dynamic_cast<BiNode*>($$));
                                 }
 							}
 		;
@@ -277,37 +297,44 @@ Type : INT {
 				$$->type = "BOOL";
 				}
 		;
-Exp : LPAREN Exp RPAREN {
-	BiNode* p_binode = dynamic_cast<BiNode*>($2);
-	if (p_binode) {
-		$$ = new BiNode();
-		$$->type = "BOOL";
-		dynamic_cast<BiNode*>($$)->true_list = p_binode->true_list;
-		dynamic_cast<BiNode*>($$)->false_list = p_binode->false_list;
-	}
-	else {
-		$$ = new Node();
-        $$->type = $2->type;
-        $$->reg_num = $2->reg_num;
-	}
-}
+Exp : 
+		LPAREN Exp RPAREN {
+			BiNode* p_binode = dynamic_cast<BiNode*>($2);
+			if (p_binode) {
+				$$ = new BiNode();
+				$$->type = "BOOL";
+				dynamic_cast<BiNode*>($$)->true_list = p_binode->true_list;
+				dynamic_cast<BiNode*>($$)->false_list = p_binode->false_list;
+			}
+			else {
+				$$ = new Node();
+				$$->type = $2->type;
+				$$->reg_num = $2->reg_num;
+			}}
 		| Exp MUL Exp {HANDLE_BINOP($1, $3, $$, "MUL")} 
 		| Exp DIV Exp {HANDLE_BINOP($1, $3, $$, "DIV")} 
 		| Exp ADD Exp {HANDLE_BINOP($1, $3, $$, "ADD")} 
 		| Exp SUB Exp {HANDLE_BINOP($1, $3, $$, "SUB")} 
 		| Exp RELATION Exp {
 			check_numeric($1, $3);
-			$$ = new Node();
-			$$->type = "BOOL";}
+			$$ = new BiNode();
+			$$->type = "BOOL";
+			ir.relop((BiNode*)$$, &($1->reg_num), &($3->reg_num), $2->type, $1->type, $3->type);
+
+			}
 		| Exp EQUALITY Exp {
 				check_numeric($1, $3);
 				$$ = new BiNode();
 				$$->type = "BOOL";
-				ir.equality((BiNode*)$$, &($1->reg_num), &($3->reg_num), $2->type, $1->type, $3->type);
+				ir.relop((BiNode*)$$, &($1->reg_num), &($3->reg_num), $2->type, $1->type, $3->type);
 				}
-		| Exp AND Exp {if ($1->type != "BOOL" || $3->type != "BOOL") MISMATCH
-				$$ = new Node();
-				$$->type = "BOOL";}
+		| Exp AND M Exp {if ($1->type != "BOOL" || $4->type != "BOOL") MISMATCH
+				$$ = new BiNode();
+				dynamic_cast<BiNode*>($$)->type = "BOOL";
+				cbr.bpatch(dynamic_cast<BiNode*>($1)->true_list, dynamic_cast<M*>($3)->label);
+				dynamic_cast<BiNode*>($$)->true_list = dynamic_cast<BiNode*>($4)->true_list;
+				dynamic_cast<BiNode*>($$)->false_list = cbr.merge(dynamic_cast<BiNode*>($1)->false_list, dynamic_cast<BiNode*>($4)->false_list);
+				}
 		| Exp OR M Exp {
 				if ($1->type != "BOOL" || $4->type != "BOOL") MISMATCH
 
@@ -336,6 +363,7 @@ Exp : LPAREN Exp RPAREN {
 				ir.icmp_bool_var((BiNode*)$$, $$->reg_num);
 		 }
 		| Call {
+            cbr.emit("; Exp->Call");
 			if ($1->type == "BOOL") {
 				$$ = new BiNode();
 				dynamic_cast<BiNode*>($$)->true_list = dynamic_cast<BiNode*>($1)->true_list;
@@ -406,6 +434,10 @@ TableEntry* get_entry(const string& id) {
 	return hash_ids.find(id)->second;
 }
 
+int get_offset(const string& id) {
+    return get_entry(id)->offset;
+}
+
 string get_type_of_binop(string x, string y) {
 	if (x == "INT" || y == "INT") return "INT";
 	return "BYTE";
@@ -469,10 +501,10 @@ void new_formal(const string& id, int offset, const string& type) {
 	add_id_to_ids(id, p_entry);
 }
 
-void new_var(const string& id, const string& type, Node* pNode) {
+void new_var(const string& id, const string& ltype, Node* pNode, const string& rtype) {
 	check_id_def(id);
-	TableEntry* p_entry = tables_stack.top()->insert(id, offset_stack.top(), type);
-	ir.store_local_var(offset_stack.top(), type, pNode);
+	TableEntry* p_entry = tables_stack.top()->insert(id, offset_stack.top(), ltype);
+	ir.store_local_var(offset_stack.top(), ltype, pNode, rtype);
 	offset_stack.top()++;
 	add_id_to_ids(id, p_entry);
 }

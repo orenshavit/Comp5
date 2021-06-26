@@ -29,12 +29,6 @@ public:
     string label; // like quad
     M() : Node() {
         label = CodeBuffer::instance().genLabel();
-        /*
-        int loc = CodeBuffer::instance().emit("\tbr label @");
-        auto list = CodeBuffer::instance().makelist(pair<int,BranchLabelIndex>(loc, FIRST));
-        label = CodeBuffer::instance().genLabel();
-        CodeBuffer::instance().bpatch(list, label);
-         */
     }
     //~M() override = default;
 };

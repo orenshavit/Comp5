@@ -24,7 +24,7 @@ public:
     void def_func(const string& id, const string& ret_type, vector<string>& arg_types);
     void end_func(const string& ret_type, Node* s);
     void assign_reg(const string& type, long value, Node* pNode);
-    void store_local_var(int offset, const string& type, Node* pNode);
+    void store_local_var(int offset, const string& ltype, Node* left_pNode, const string& rtype);
     void load_local_var(int offset, const string &type, Node *pNode);
     void emit_print_functions();
     int call_func(const string& id, const string& ret_type, stack<pair<string, int>> &args);
@@ -41,15 +41,23 @@ public:
                                   const string &true_label,
                                   const string &false_label,
                                   Node* n2);
-    void equality(BiNode* p_binode,
-                  int* r1,
-                  int* r2,
-                  const string& op,
-                  const string& ty1,
-                  const string& ty2);
+    void bpatch_if_statement(Node* s,
+                             BiNode* p_binode,
+                             const string &true_label,
+                             Node* n);
+    void bpatch_while(Node* s,
+                      const string &m1_label,
+                      BiNode* b,
+                      const string &m2_label,
+                      Node* n);
+    void relop(BiNode* p_binode,
+               int* r1,
+               int* r2,
+               const string& op,
+               const string& ty1,
+               const string& ty2);
     void gen_label_and_goto_it(Node* s);
     void return_exp(int reg_num, const string& ty);
     void icmp_bool_var(BiNode* p_binode, int reg_num);
-    void temp_bool_reg(const string& one_or_zero);
     int get_bool(BiNode* p_binode);
 };

@@ -80,19 +80,6 @@ Reg ManageIR::getelement_from_stack(int offset) {
     return ptr;
 }
 
-void ManageIR::store_local_var(int offset, const string& type, Node* pNode) {
-    auto ptr = getelement_from_stack(offset);
-    auto reg = regs.at(regs.size() - 2);
-    if (type != "INT") {
-        auto reg2 = new_temp();
-        cbr.emit("\t" + reg2.name + " = zext " + to_llvm_type(type) + " " + reg.name + " to i32");
-        reg = reg2;
-
-    }
-    pNode->reg_num = reg.num;
-    cbr.emit("\tstore i32 " + reg.name + ", i32* " + ptr.name);
-}
-
 void ManageIR::emit_print_functions() {
     cbr.emit("declare i32 @printf(i8*, ...)");
     cbr.emit("declare void @exit(i32)");
@@ -116,8 +103,12 @@ void ManageIR::emit_print_functions() {
 int ManageIR::call_func(const string &id,
                          const string &ret_type,
                          stack<pair<string, int>> &args) {
+    string cmd = "\t";
     Reg ret_reg = new_temp();
-    string cmd = "\t" + ret_reg.name + " = call " + to_llvm_type(ret_type) + " @" + id + "(";
+    if (ret_type != "VOID") {
+        cmd += ret_reg.name + " = ";
+    }
+    cmd += "call " + to_llvm_type(ret_type) + " @" + id + "(";
     while (!args.empty()) {
        auto arg = args.top();
        cmd += to_llvm_type(arg.first) + num2name(arg.second);
@@ -160,9 +151,9 @@ void ManageIR::binop(const string &op, int* r1, int* r2,
 }
 
 void ManageIR::load_local_var(int offset, const string &type, Node *pNode) {
-    auto ptr = getelement_from_stack(offset);
+    Reg right_ptr = getelement_from_stack(offset);
     Reg reg = new_temp();
-    cbr.emit("\t" + reg.name + " = load i32, i32* " + ptr.name);
+    cbr.emit("\t" + reg.name + " = load i32, i32* " + right_ptr.name);
     if (type != "INT") {
         Reg new_reg = new_temp();
         cbr.emit("\t" + new_reg.name+ " = trunc i32 " + reg.name + " to " + to_llvm_type(type));
@@ -171,16 +162,21 @@ void ManageIR::load_local_var(int offset, const string &type, Node *pNode) {
         pNode->reg_num = reg.num;
 }
 
-void ManageIR::bpatch_if_else_statement(Node* s,
-                                        Node* n,
-                                        BiNode* p_binode,
-                                        const string &true_label,
-                                        const string &false_label,
-                                        Node* n2) {
-    cbr.bpatch(p_binode->true_list, true_label);
-    cbr.bpatch(p_binode->false_list, false_label);
-    s->next_list = cbr.merge(n->next_list, n2->next_list);
-    last_bpatch = true;
+void ManageIR::store_local_var(int offset, const string& ltype, Node* left_pNode, const string& rtype) {
+    auto ptr = getelement_from_stack(offset);
+    auto reg = regs.at(regs.size() - 2);
+    if (ltype != "INT") {
+        auto reg2 = new_temp();
+        cbr.emit("\t" + reg2.name + " = zext " + to_llvm_type(ltype) + " " + reg.name + " to i32");
+        reg = reg2;
+    }
+    if (ltype == "INT" and rtype == "BYTE") {
+        auto reg3 = new_temp();
+        cbr.emit("\t" + reg3.name + " = zext i8 " + reg.name + " to i32");
+        reg = reg3;
+    }
+    left_pNode->reg_num = reg.num;
+    cbr.emit("\tstore i32 " + reg.name + ", i32* " + ptr.name);
 }
 
 static string larger_type(const string& ty1, const string& ty2) {
@@ -190,20 +186,29 @@ static string larger_type(const string& ty1, const string& ty2) {
     return "BYTE";
 }
 
-void ManageIR::equality(BiNode* p_binode,
-                        int* r1, int* r2,
-                        const string& op,
-                        const string& ty1,
-                        const string& ty2) {
+string op2llvm(const string& op) {
+    if (op == "==") return "eq ";
+    if (op == "!=") return "ne ";
+    if (op == "<") return "slt ";
+    if (op == ">") return "sgt ";
+    if (op == "<=") return "sle ";
+    return "sge ";
+}
+
+void ManageIR::relop(BiNode* p_binode,
+                     int* r1, int* r2,
+                     const string& op,
+                     const string& ty1,
+                     const string& ty2) {
     Reg reg = new_temp();
     string cmd = "\t" + reg.name + " = icmp ";
-    if (op == "==") cmd += "eq ";
-    else cmd += "ne ";
+    cmd += op2llvm(op);
     const string& op_type = larger_type(ty1, ty2);
     cmd += to_llvm_type(op_type);
     zext_if_needed(r1, r2, ty1, ty2, op_type);
     cmd += " " + num2name(*r1) + ", " + num2name(*r2);
     cbr.emit(cmd);
+
     int loc = cbr.emit("\tbr i1 " + reg.name + ", label @, label @");
     p_binode->true_list = cbr.merge(p_binode->true_list, cbr.makelist({loc, FIRST}));
     p_binode->false_list = cbr.merge(p_binode->false_list, cbr.makelist({loc, SECOND}));
@@ -222,13 +227,15 @@ void ManageIR::icmp_bool_var(BiNode* p_binode, int reg_num) {
 
 }
 
-void ManageIR::temp_bool_reg(const string& one_or_zero) {
-    Reg reg = new_temp();
-    cbr.emit("\t" + reg.name + " = add i1 " + one_or_zero + ", 0");
-
-}
+//void ManageIR::temp_bool_reg(const string& one_or_zero) {
+//    Reg reg = new_temp();
+//    cbr.emit("\t" + reg.name + " = add i1 " + one_or_zero + ", 0");
+//
+//}
 
 int ManageIR::get_bool(BiNode* p_binode) {
+    cbr.emit("");
+    cbr.emit("\t; Getting Bool Using Phi");
     const string &true_label = cbr.genLabel();
     int next_loc_1 = cbr.emit("\tbr label @");
 
@@ -247,8 +254,34 @@ int ManageIR::get_bool(BiNode* p_binode) {
     return phi_reg.num;
 }
 
+void ManageIR::bpatch_if_else_statement(Node* s,
+                                        Node* n,
+                                        BiNode* p_binode,
+                                        const string &true_label,
+                                        const string &false_label,
+                                        Node* n2) {
+    cbr.bpatch(p_binode->true_list, true_label);
+    cbr.bpatch(p_binode->false_list, false_label);
+    s->next_list = cbr.merge(n->next_list, n2->next_list);
+    last_bpatch = true;
+}
 
+void ManageIR::bpatch_if_statement(Node* s,
+                                   BiNode* p_binode,
+                                   const string &true_label,
+                                   Node* n) {
+    cbr.bpatch(p_binode->true_list, true_label);
+    s->next_list = cbr.merge(p_binode->false_list, n->next_list);
+    last_bpatch = true;
+}
 
+void ManageIR::bpatch_while(Node *s, const string &m1_label, BiNode *b, const string &m2_label, Node *n) {
+    cbr.bpatch(n->next_list, m1_label);
+    cbr.bpatch(b->true_list, m2_label);
+    s->next_list = b->false_list;
+    cbr.emit("\tbr label %" + m1_label);
+    last_bpatch = true;
+}
 
 
 Reg::Reg(int num, string name) : num(num), name(std::move(name)) {}
