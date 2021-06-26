@@ -139,6 +139,7 @@ Statements : Statement {
 				cbr.bpatch($2->next_list, dynamic_cast<M*>($3)->label);
 				$$ = new Node();
 				$$->next_list = $4->next_list;
+				cbr.emit("");
 			}
 			;
 Statement : LBRACE Statements RBRACE {
@@ -157,7 +158,6 @@ Statement : LBRACE Statements RBRACE {
 					if (ltype == "BOOL") {
 						int bool_reg_num = ir.get_bool(dynamic_cast<BiNode*>($4));
 						$2->reg_num = bool_reg_num;
-						//ir.assign_reg(ir.to_llvm_type($1->type), $4->value, $2);
 					}
 					new_var($2->id, ltype, $2);
 			}
@@ -174,6 +174,10 @@ Statement : LBRACE Statements RBRACE {
 			}
 			| RETURN Exp SC {
 				if (current_func.ret_type != $2->type || current_func.ret_type == "VOID") MISMATCH
+				if ($2->type == "BOOL") {
+					int bool_reg_num = ir.get_bool(dynamic_cast<BiNode*>($2));
+					$2->reg_num = bool_reg_num;
+				}
 				ir.return_exp($2->reg_num, $2->type);
 			}
 			| IF LPAREN MarkerBoolExp RPAREN M Statement MarkerELSE N M Statement N {
@@ -229,20 +233,25 @@ Call : ID LPAREN ExpList RPAREN {
 								const string& type =  check_func_return_type($1->id);
 								if (type == "BOOL") {
 									$$ = new BiNode();
-									
-									
 								}
 								$$->type = type;
-								ir.call_func($1->id, $$->type, called_exps);
+								$$->reg_num = ir.call_func($1->id, $$->type, called_exps);
+								if (type == "BOOL") {
+								    ir.icmp_bool_var((BiNode*)$$, $$->reg_num);
+									$$->reg_num  = ir.get_bool(dynamic_cast<BiNode*>($$));
+								}
 	}
 		| ID LPAREN RPAREN {
 								const string& type =  check_func_return_type($1->id);
-								if (type == "BOOL") {
-									$$ = new BiNode();
-									
-								}
-								$$->type = type;
-								ir.call_func($1->id, $$->type, called_exps);
+                                if (type == "BOOL") {
+                                    $$ = new BiNode();
+                                }
+                                $$->type = type;
+                                $$->reg_num = ir.call_func($1->id, $$->type, called_exps);
+                                if (type == "BOOL") {
+                                    ir.icmp_bool_var((BiNode*)$$, $$->reg_num);
+                                    $$->reg_num  = ir.get_bool(dynamic_cast<BiNode*>($$));
+                                }
 							}
 		;
 		
@@ -354,15 +363,13 @@ Exp : LPAREN Exp RPAREN {
 				$$->value = 1;
 				int loc = cbr.emit("\tbr label @");
     			dynamic_cast<BiNode*>($$)->true_list = cbr.makelist({loc, FIRST});
-				//ir.temp_bool_reg("1");
-				//ir.handle_true(dynamic_cast<BiNode*>($$));
 				}
 		| FALSE {$$ = new BiNode();
 				$$->type = "BOOL";
 				$$->value = 0;
 				int loc = cbr.emit("\tbr label @");
 				dynamic_cast<BiNode*>($$)->false_list = cbr.makelist({loc, FIRST});
-				ir.temp_bool_reg("0");
+				
 				}
 		| NOT Exp {
 				if ($2->type != "BOOL") MISMATCH

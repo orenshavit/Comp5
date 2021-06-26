@@ -586,12 +586,12 @@ static const yytype_int8 yytranslate[] =
 static const yytype_int16 yyrline[] =
 {
        0,    88,    88,    91,    98,   102,   111,   112,   115,   116,
-     118,   119,   121,   122,   124,   133,   137,   144,   147,   151,
-     164,   171,   172,   175,   179,   183,   186,   187,   193,   199,
-     203,   207,   213,   215,   217,   222,   226,   228,   238,   249,
-     253,   258,   262,   266,   271,   285,   286,   287,   288,   289,
-     293,   299,   302,   312,   317,   329,   341,   349,   351,   360,
-     367,   376,   379,   380,   381
+     118,   119,   121,   122,   124,   133,   137,   145,   148,   152,
+     164,   171,   172,   175,   183,   187,   190,   191,   197,   203,
+     207,   211,   217,   219,   221,   226,   230,   232,   244,   258,
+     262,   267,   271,   275,   280,   294,   295,   296,   297,   298,
+     302,   308,   311,   321,   326,   338,   350,   358,   360,   367,
+     374,   383,   386,   387,   388
 };
 #endif
 
@@ -1596,29 +1596,30 @@ yyreduce:
 				cbr.bpatch(yyvsp[-2]->next_list, dynamic_cast<M*>(yyvsp[-1])->label);
 				yyval = new Node();
 				yyval->next_list = yyvsp[0]->next_list;
+				cbr.emit("");
 			}
-#line 1601 "parser.tab.cpp"
+#line 1602 "parser.tab.cpp"
     break;
 
   case 17:
-#line 144 "parser.ypp"
+#line 145 "parser.ypp"
                                      {
 				end_of_scope_operations();
 				}
-#line 1609 "parser.tab.cpp"
+#line 1610 "parser.tab.cpp"
     break;
 
   case 18:
-#line 147 "parser.ypp"
+#line 148 "parser.ypp"
                                       {
 				ir.assign_reg(ir.to_llvm_type(yyvsp[-2]->type), 0, yyvsp[-1]);
 				new_var(yyvsp[-1]->id, yyvsp[-2]->type, yyvsp[-1]);
 				}
-#line 1618 "parser.tab.cpp"
+#line 1619 "parser.tab.cpp"
     break;
 
   case 19:
-#line 151 "parser.ypp"
+#line 152 "parser.ypp"
                                                 {		
 					string ltype = yyvsp[-4]->type;
 					string rtype = yyvsp[-1]->type;
@@ -1628,7 +1629,6 @@ yyreduce:
 					if (ltype == "BOOL") {
 						int bool_reg_num = ir.get_bool(dynamic_cast<BiNode*>(yyvsp[-1]));
 						yyvsp[-3]->reg_num = bool_reg_num;
-						//ir.assign_reg(ir.to_llvm_type($1->type), $4->value, $2);
 					}
 					new_var(yyvsp[-3]->id, ltype, yyvsp[-3]);
 			}
@@ -1665,191 +1665,200 @@ yyreduce:
 #line 175 "parser.ypp"
                                         {
 				if (current_func.ret_type != yyvsp[-1]->type || current_func.ret_type == "VOID") MISMATCH
+				if (yyvsp[-1]->type == "BOOL") {
+					int bool_reg_num = ir.get_bool(dynamic_cast<BiNode*>(yyvsp[-1]));
+					yyvsp[-1]->reg_num = bool_reg_num;
+				}
 				ir.return_exp(yyvsp[-1]->reg_num, yyvsp[-1]->type);
 			}
-#line 1671 "parser.tab.cpp"
+#line 1675 "parser.tab.cpp"
     break;
 
   case 24:
-#line 179 "parser.ypp"
+#line 183 "parser.ypp"
                                                                                                 {
 				ir.bpatch_if_else_statement(yyval, yyvsp[-3], dynamic_cast<BiNode*>(yyvsp[-8]), (dynamic_cast<M*>(yyvsp[-6]))->label, (dynamic_cast<M*>(yyvsp[-2]))->label, yyvsp[0]);
 				end_of_scope_operations();
 				}
-#line 1680 "parser.tab.cpp"
+#line 1684 "parser.tab.cpp"
     break;
 
   case 25:
-#line 183 "parser.ypp"
+#line 187 "parser.ypp"
                                                                      {
 					end_of_scope_operations();
 					}
-#line 1688 "parser.tab.cpp"
+#line 1692 "parser.tab.cpp"
     break;
 
   case 26:
-#line 186 "parser.ypp"
+#line 190 "parser.ypp"
                                                                                   { in_while.pop(); end_of_scope_operations(); }
-#line 1694 "parser.tab.cpp"
+#line 1698 "parser.tab.cpp"
     break;
 
   case 27:
-#line 187 "parser.ypp"
+#line 191 "parser.ypp"
                                    {
 				if (in_while.empty() && in_switch.empty()) {
 					output::errorUnexpectedBreak(yylineno);
 					exit(0);
 				}
 			}
-#line 1705 "parser.tab.cpp"
+#line 1709 "parser.tab.cpp"
     break;
 
   case 28:
-#line 193 "parser.ypp"
+#line 197 "parser.ypp"
                                       { 
 				if (in_while.empty()) {
 					output::errorUnexpectedContinue(yylineno);
 					exit(0);
 				}
 			}
-#line 1716 "parser.tab.cpp"
+#line 1720 "parser.tab.cpp"
     break;
 
   case 29:
-#line 199 "parser.ypp"
+#line 203 "parser.ypp"
                                                                                                     { in_switch.pop(); end_of_scope_operations(); }
-#line 1722 "parser.tab.cpp"
+#line 1726 "parser.tab.cpp"
     break;
 
   case 30:
-#line 203 "parser.ypp"
+#line 207 "parser.ypp"
     {
 	yyval = new M();
 }
-#line 1730 "parser.tab.cpp"
+#line 1734 "parser.tab.cpp"
     break;
 
   case 31:
-#line 207 "parser.ypp"
+#line 211 "parser.ypp"
     {
 	yyval = new Node();
 	int loc = cbr.emit("\tbr label @");
 	yyval->next_list = cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST));
 }
-#line 1740 "parser.tab.cpp"
+#line 1744 "parser.tab.cpp"
     break;
 
   case 32:
-#line 213 "parser.ypp"
+#line 217 "parser.ypp"
               { in_while.push(true); }
-#line 1746 "parser.tab.cpp"
+#line 1750 "parser.tab.cpp"
     break;
 
   case 33:
-#line 215 "parser.ypp"
+#line 219 "parser.ypp"
                { in_switch.push(true); }
-#line 1752 "parser.tab.cpp"
+#line 1756 "parser.tab.cpp"
     break;
 
   case 34:
-#line 217 "parser.ypp"
+#line 221 "parser.ypp"
                        {
 	if (NOT_NUMERIC(yyvsp[0]->type)) MISMATCH
 	
 }
-#line 1761 "parser.tab.cpp"
+#line 1765 "parser.tab.cpp"
     break;
 
   case 35:
-#line 222 "parser.ypp"
+#line 226 "parser.ypp"
                     {
 	if (yyvsp[0]->type != "BOOL") MISMATCH
 }
-#line 1769 "parser.tab.cpp"
+#line 1773 "parser.tab.cpp"
     break;
 
   case 36:
-#line 226 "parser.ypp"
+#line 230 "parser.ypp"
                   {end_of_scope_operations();}
-#line 1775 "parser.tab.cpp"
+#line 1779 "parser.tab.cpp"
     break;
 
   case 37:
-#line 228 "parser.ypp"
+#line 232 "parser.ypp"
                                 { 
 								const string& type =  check_func_return_type(yyvsp[-3]->id);
 								if (type == "BOOL") {
 									yyval = new BiNode();
-									
-									
 								}
 								yyval->type = type;
-								ir.call_func(yyvsp[-3]->id, yyval->type, called_exps);
+								yyval->reg_num = ir.call_func(yyvsp[-3]->id, yyval->type, called_exps);
+								if (type == "BOOL") {
+								    ir.icmp_bool_var((BiNode*)yyval, yyval->reg_num);
+									yyval->reg_num  = ir.get_bool(dynamic_cast<BiNode*>(yyval));
+								}
 	}
-#line 1790 "parser.tab.cpp"
+#line 1796 "parser.tab.cpp"
     break;
 
   case 38:
-#line 238 "parser.ypp"
+#line 244 "parser.ypp"
                                    {
 								const string& type =  check_func_return_type(yyvsp[-2]->id);
-								if (type == "BOOL") {
-									yyval = new BiNode();
-									
-								}
-								yyval->type = type;
-								ir.call_func(yyvsp[-2]->id, yyval->type, called_exps);
+                                if (type == "BOOL") {
+                                    yyval = new BiNode();
+                                }
+                                yyval->type = type;
+                                yyval->reg_num = ir.call_func(yyvsp[-2]->id, yyval->type, called_exps);
+                                if (type == "BOOL") {
+                                    ir.icmp_bool_var((BiNode*)yyval, yyval->reg_num);
+                                    yyval->reg_num  = ir.get_bool(dynamic_cast<BiNode*>(yyval));
+                                }
 							}
-#line 1804 "parser.tab.cpp"
+#line 1813 "parser.tab.cpp"
     break;
 
   case 39:
-#line 249 "parser.ypp"
+#line 258 "parser.ypp"
                {
 			called_arg_types.push(yyvsp[0]->type);
 			called_exps.push(pair<string, int>(yyvsp[0]->type, yyvsp[0]->reg_num));
 			}
-#line 1813 "parser.tab.cpp"
+#line 1822 "parser.tab.cpp"
     break;
 
   case 40:
-#line 253 "parser.ypp"
+#line 262 "parser.ypp"
                                     {
 			called_arg_types.push(yyvsp[-2]->type);
 			called_exps.push(pair<string, int>(yyvsp[-2]->type, yyvsp[-2]->reg_num));
 			}
-#line 1822 "parser.tab.cpp"
+#line 1831 "parser.tab.cpp"
     break;
 
   case 41:
-#line 258 "parser.ypp"
+#line 267 "parser.ypp"
            { 
 		yyval = new Node();
 		yyval->type = "INT";
 		}
-#line 1831 "parser.tab.cpp"
+#line 1840 "parser.tab.cpp"
     break;
 
   case 42:
-#line 262 "parser.ypp"
+#line 271 "parser.ypp"
                         {
 				yyval = new Node();
 				yyval->type = "BYTE";
 				}
-#line 1840 "parser.tab.cpp"
+#line 1849 "parser.tab.cpp"
     break;
 
   case 43:
-#line 266 "parser.ypp"
+#line 275 "parser.ypp"
                         {
 				yyval = new Node();
 				yyval->type = "BOOL";
 				}
-#line 1849 "parser.tab.cpp"
+#line 1858 "parser.tab.cpp"
     break;
 
   case 44:
-#line 271 "parser.ypp"
+#line 280 "parser.ypp"
                         {
 	BiNode* p_binode = dynamic_cast<BiNode*>(yyvsp[-1]);
 	if (p_binode) {
@@ -1864,63 +1873,63 @@ yyreduce:
         yyval->reg_num = yyvsp[-1]->reg_num;
 	}
 }
-#line 1868 "parser.tab.cpp"
+#line 1877 "parser.tab.cpp"
     break;
 
   case 45:
-#line 285 "parser.ypp"
+#line 294 "parser.ypp"
                               {HANDLE_BINOP(yyvsp[-2], yyvsp[0], yyval, "MUL")}
-#line 1874 "parser.tab.cpp"
+#line 1883 "parser.tab.cpp"
     break;
 
   case 46:
-#line 286 "parser.ypp"
+#line 295 "parser.ypp"
                               {HANDLE_BINOP(yyvsp[-2], yyvsp[0], yyval, "DIV")}
-#line 1880 "parser.tab.cpp"
+#line 1889 "parser.tab.cpp"
     break;
 
   case 47:
-#line 287 "parser.ypp"
+#line 296 "parser.ypp"
                               {HANDLE_BINOP(yyvsp[-2], yyvsp[0], yyval, "ADD")}
-#line 1886 "parser.tab.cpp"
+#line 1895 "parser.tab.cpp"
     break;
 
   case 48:
-#line 288 "parser.ypp"
+#line 297 "parser.ypp"
                               {HANDLE_BINOP(yyvsp[-2], yyvsp[0], yyval, "SUB")}
-#line 1892 "parser.tab.cpp"
+#line 1901 "parser.tab.cpp"
     break;
 
   case 49:
-#line 289 "parser.ypp"
+#line 298 "parser.ypp"
                                    {
 			check_numeric(yyvsp[-2], yyvsp[0]);
 			yyval = new Node();
 			yyval->type = "BOOL";}
-#line 1901 "parser.tab.cpp"
+#line 1910 "parser.tab.cpp"
     break;
 
   case 50:
-#line 293 "parser.ypp"
+#line 302 "parser.ypp"
                                    {
 				check_numeric(yyvsp[-2], yyvsp[0]);
 				yyval = new BiNode();
 				yyval->type = "BOOL";
 				ir.equality((BiNode*)yyval, &(yyvsp[-2]->reg_num), &(yyvsp[0]->reg_num), yyvsp[-1]->type, yyvsp[-2]->type, yyvsp[0]->type);
 				}
-#line 1912 "parser.tab.cpp"
+#line 1921 "parser.tab.cpp"
     break;
 
   case 51:
-#line 299 "parser.ypp"
+#line 308 "parser.ypp"
                               {if (yyvsp[-2]->type != "BOOL" || yyvsp[0]->type != "BOOL") MISMATCH
 				yyval = new Node();
 				yyval->type = "BOOL";}
-#line 1920 "parser.tab.cpp"
+#line 1929 "parser.tab.cpp"
     break;
 
   case 52:
-#line 302 "parser.ypp"
+#line 311 "parser.ypp"
                                {
 				if (yyvsp[-3]->type != "BOOL" || yyvsp[0]->type != "BOOL") MISMATCH
 
@@ -1931,21 +1940,21 @@ yyreduce:
 				dynamic_cast<BiNode*>(yyval)->false_list = dynamic_cast<BiNode*>(yyvsp[0])->false_list;
 
 		}
-#line 1935 "parser.tab.cpp"
+#line 1944 "parser.tab.cpp"
     break;
 
   case 53:
-#line 312 "parser.ypp"
+#line 321 "parser.ypp"
                       {
 				//$$ = new Node();
 				yyval->type = "INT";
 				ir.assign_reg("i32", yyval->value, yyval);
 				}
-#line 1945 "parser.tab.cpp"
+#line 1954 "parser.tab.cpp"
     break;
 
   case 54:
-#line 317 "parser.ypp"
+#line 326 "parser.ypp"
                      { 
 			const string& ty = check_var_return_type(yyvsp[0]->id);
 			if (ty == "BOOL") 
@@ -1958,11 +1967,11 @@ yyreduce:
 			if (ty == "BOOL") 
 				ir.icmp_bool_var((BiNode*)yyval, yyval->reg_num);
 		 }
-#line 1962 "parser.tab.cpp"
+#line 1971 "parser.tab.cpp"
     break;
 
   case 55:
-#line 329 "parser.ypp"
+#line 338 "parser.ypp"
                        {
 			if (yyvsp[0]->type == "BOOL") {
 				yyval = new BiNode();
@@ -1975,11 +1984,11 @@ yyreduce:
 			yyval->next_list = yyvsp[0]->next_list;
 			yyval->reg_num = yyvsp[0]->reg_num;
 			yyval->type = yyvsp[0]->type; }
-#line 1979 "parser.tab.cpp"
+#line 1988 "parser.tab.cpp"
     break;
 
   case 56:
-#line 341 "parser.ypp"
+#line 350 "parser.ypp"
                         {
 			if (yyvsp[-1]->value > 255) {
 				output::errorByteTooLarge(yylineno, to_string(yyvsp[-1]->value));
@@ -1988,44 +1997,42 @@ yyreduce:
 			yyval->type = "BYTE";
 			ir.assign_reg("i8", yyval->value, yyval);
 			}
-#line 1992 "parser.tab.cpp"
+#line 2001 "parser.tab.cpp"
     break;
 
   case 57:
-#line 349 "parser.ypp"
+#line 358 "parser.ypp"
                          {yyval = new Node();
 				yyval->type = "STRING";}
-#line 1999 "parser.tab.cpp"
+#line 2008 "parser.tab.cpp"
     break;
 
   case 58:
-#line 351 "parser.ypp"
+#line 360 "parser.ypp"
                        { 
 				yyval = new BiNode();
 				yyval->type = "BOOL";
 				yyval->value = 1;
 				int loc = cbr.emit("\tbr label @");
     			dynamic_cast<BiNode*>(yyval)->true_list = cbr.makelist({loc, FIRST});
-				//ir.temp_bool_reg("1");
-				//ir.handle_true(dynamic_cast<BiNode*>($$));
 				}
-#line 2013 "parser.tab.cpp"
+#line 2020 "parser.tab.cpp"
     break;
 
   case 59:
-#line 360 "parser.ypp"
+#line 367 "parser.ypp"
                         {yyval = new BiNode();
 				yyval->type = "BOOL";
 				yyval->value = 0;
 				int loc = cbr.emit("\tbr label @");
 				dynamic_cast<BiNode*>(yyval)->false_list = cbr.makelist({loc, FIRST});
-				ir.temp_bool_reg("0");
+				
 				}
-#line 2025 "parser.tab.cpp"
+#line 2032 "parser.tab.cpp"
     break;
 
   case 60:
-#line 367 "parser.ypp"
+#line 374 "parser.ypp"
                           {
 				if (yyvsp[0]->type != "BOOL") MISMATCH
 				yyval = new BiNode();
@@ -2033,35 +2040,35 @@ yyreduce:
 				dynamic_cast<BiNode*>(yyval)->true_list = dynamic_cast<BiNode*>(yyvsp[0])->false_list;
 				dynamic_cast<BiNode*>(yyval)->false_list = dynamic_cast<BiNode*>(yyvsp[0])->true_list;
 		}
-#line 2037 "parser.tab.cpp"
+#line 2044 "parser.tab.cpp"
     break;
 
   case 61:
-#line 376 "parser.ypp"
+#line 383 "parser.ypp"
                                      {}
-#line 2043 "parser.tab.cpp"
+#line 2050 "parser.tab.cpp"
     break;
 
   case 62:
-#line 379 "parser.ypp"
+#line 386 "parser.ypp"
                              {}
-#line 2049 "parser.tab.cpp"
+#line 2056 "parser.tab.cpp"
     break;
 
   case 63:
-#line 380 "parser.ypp"
+#line 387 "parser.ypp"
                            {}
-#line 2055 "parser.tab.cpp"
+#line 2062 "parser.tab.cpp"
     break;
 
   case 64:
-#line 381 "parser.ypp"
+#line 388 "parser.ypp"
                                            {}
-#line 2061 "parser.tab.cpp"
+#line 2068 "parser.tab.cpp"
     break;
 
 
-#line 2065 "parser.tab.cpp"
+#line 2072 "parser.tab.cpp"
 
       default: break;
     }
@@ -2293,7 +2300,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 384 "parser.ypp"
+#line 391 "parser.ypp"
 
 
 void yyerror(const char* c) {

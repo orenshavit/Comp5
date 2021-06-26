@@ -15,20 +15,54 @@ define void @print(i8*) {
 	ret void
 }
 
+define i1 @foo() {
+	%st_ptr = alloca i32, i32 50
+	%t0 = add i32 1, 0
+	call void @printi(i32%t0)
+	br label %label_22
+label_22:
+	br label %label_24
+label_24:
+	br label %label_28
+label_26:
+	br label %label_28
+label_28:
+	%t1 = phi i1 [1, %label_24], [0, %label_26]
+	%t2 = getelementptr i32, i32* %st_ptr, i32 0
+	%t3 = zext i1 %t1 to i32
+	store i32 %t3, i32* %t2
+
+	br label %label_35
+label_35:
+	%t4 = getelementptr i32, i32* %st_ptr, i32 0
+	%t5 = load i32, i32* %t4
+	%t6 = trunc i32 %t5 to i1
+	%t7 = icmp eq i1 %t6, 1
+	br i1 %t7, label %label_41, label %label_43
+label_41:
+	br label %label_45
+label_43:
+	br label %label_45
+label_45:
+	%t8 = phi i1 [1, %label_41], [0, %label_43]
+	ret i1 %t8
+
+}
+
 define void @main() {
 	%st_ptr = alloca i32, i32 50
-	br label %label_20
-label_20:
-	%t0 = add i1 1, 0
-	br label %label_25
-label_23:
-	%t1 = add i1 0, 0
-label_25:
-	%t2 = phi i1 [1, %label_20], [0, %label_23]
-	%t3 = getelementptr i32, i32* %st_ptr, i32 0
-	%t4 = zext i1 %t2 to i32
-	store i32 %t4, i32* %t3
-	br label %label_31
-label_31:
+	call i1 @foo()
+label_54:
+	br label %label_58
+label_56:
+	br label %label_58
+label_58:
+	%t9 = phi i1 [1, %label_54], [0, %label_56]
+	%t10 = getelementptr i32, i32* %st_ptr, i32 0
+	%t11 = zext i1 %t9 to i32
+	store i32 %t11, i32* %t10
+	br label %label_64
+label_64:
 	ret void
 }
+

@@ -63,6 +63,7 @@ void ManageIR::end_func(const string &ret_type, Node* s) {
         cbr.emit("\tret void");
     }
     cbr.emit("}");
+    cbr.emit("");
 }
 
 void ManageIR::assign_reg(const string& type, long value, Node* pNode) {
@@ -112,10 +113,11 @@ void ManageIR::emit_print_functions() {
     cbr.emit("");
 }
 
-void ManageIR::call_func(const string &id,
+int ManageIR::call_func(const string &id,
                          const string &ret_type,
                          stack<pair<string, int>> &args) {
-    string cmd = "\tcall " + to_llvm_type(ret_type) + " @" + id + "(";
+    Reg ret_reg = new_temp();
+    string cmd = "\t" + ret_reg.name + " = call " + to_llvm_type(ret_type) + " @" + id + "(";
     while (!args.empty()) {
        auto arg = args.top();
        cmd += to_llvm_type(arg.first) + num2name(arg.second);
@@ -123,6 +125,7 @@ void ManageIR::call_func(const string &id,
     }
     cmd += ")";
     cbr.emit(cmd);
+    return ret_reg.num;
 }
 
 void ManageIR::zext_if_needed(int* r1, int* r2, const string &ty1, const string &ty2,

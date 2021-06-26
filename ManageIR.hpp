@@ -27,7 +27,7 @@ public:
     void store_local_var(int offset, const string& type, Node* pNode);
     void load_local_var(int offset, const string &type, Node *pNode);
     void emit_print_functions();
-    void call_func(const string& id, const string& ret_type, stack<pair<string, int>> &args);
+    int call_func(const string& id, const string& ret_type, stack<pair<string, int>> &args);
     string to_llvm_type(const string& type);
     void binop(const string &op, int* r1, int* r2,
                const string &ty1, const string &ty2,
@@ -51,6 +51,5 @@ public:
     void return_exp(int reg_num, const string& ty);
     void icmp_bool_var(BiNode* p_binode, int reg_num);
     void temp_bool_reg(const string& one_or_zero);
-    //void phi();
     int get_bool(BiNode* p_binode);
 };
