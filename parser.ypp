@@ -89,10 +89,9 @@ Program : Funcs {}
 		;
 
 FuncDecl : RetType MarkerID LPAREN Formals RPAREN MarkerLBRACE Statements RBRACE {
-																	ir.end_func(current_func.ret_type);
+																	ir.end_func(current_func.ret_type, $7);
 																	current_func = FunctionDecl();
 																	end_of_scope_operations();
-																	
 																	}
 		;
 
@@ -134,10 +133,8 @@ FormalDecl : Type ID  {
 Statements : Statement { 
 						$$ = new Node();
 						$$->next_list = $1->next_list;
-						P("first");
 						}
 			| Statements N M Statement {
-				P("not first");
 				cbr.bpatch($1->next_list, dynamic_cast<M*>($3)->label);
 				cbr.bpatch($2->next_list, dynamic_cast<M*>($3)->label);
 				$$ = new Node();
@@ -158,10 +155,11 @@ Statement : LBRACE Statements RBRACE {
 						if (!(ltype == "INT" && rtype == "BYTE")) MISMATCH 
 					}
 					if (ltype == "BOOL") {
-						ir.assign_reg(ir.to_llvm_type($1->type), $4->value, $2);
+						int bool_reg_num = ir.get_bool(dynamic_cast<BiNode*>($4));
+						$2->reg_num = bool_reg_num;
+						//ir.assign_reg(ir.to_llvm_type($1->type), $4->value, $2);
 					}
-
-					new_var($2->id, $1->type, $2);
+					new_var($2->id, ltype, $2);
 			}
 			| ID ASSIGN Exp SC {  
 				string ltype = check_var_return_type($1->id);
@@ -176,9 +174,10 @@ Statement : LBRACE Statements RBRACE {
 			}
 			| RETURN Exp SC {
 				if (current_func.ret_type != $2->type || current_func.ret_type == "VOID") MISMATCH
+				ir.return_exp($2->reg_num, $2->type);
 			}
-			| IF LPAREN MarkerBoolExp RPAREN M Statement MarkerELSE N M Statement {
-				ir.bpatch_if_else_statement($$, $6, $8, $10, dynamic_cast<BiNode*>($3), (dynamic_cast<M*>($5))->label, (dynamic_cast<M*>($9))->label);
+			| IF LPAREN MarkerBoolExp RPAREN M Statement MarkerELSE N M Statement N {
+				ir.bpatch_if_else_statement($$, $8, dynamic_cast<BiNode*>($3), (dynamic_cast<M*>($5))->label, (dynamic_cast<M*>($9))->label, $11);
 				end_of_scope_operations();
 				}
 			| IF LPAREN MarkerBoolExp RPAREN M Statement {
@@ -222,20 +221,29 @@ MarkerNumericExp : Exp {
 
 MarkerBoolExp : Exp {
 	if ($1->type != "BOOL") MISMATCH
-	ir.try_if_else(dynamic_cast<BiNode*>($1));
 };
 
 MarkerELSE : ELSE {end_of_scope_operations();};
 
 Call : ID LPAREN ExpList RPAREN { 
-								$$ = new Node();
-								$$->type = check_func_return_type($1->id);
-								ir.call_func($1->id, $$->type, called_exps);
-
+								const string& type =  check_func_return_type($1->id);
+								if (type == "BOOL") {
+									$$ = new BiNode();
+									
+									
 								}
-		| ID LPAREN RPAREN { $$ = new Node();
-								$$->type = check_func_return_type($1->id);
-								ir.call_func($1->id, $$->type, called_exps); }
+								$$->type = type;
+								ir.call_func($1->id, $$->type, called_exps);
+	}
+		| ID LPAREN RPAREN {
+								const string& type =  check_func_return_type($1->id);
+								if (type == "BOOL") {
+									$$ = new BiNode();
+									
+								}
+								$$->type = type;
+								ir.call_func($1->id, $$->type, called_exps);
+							}
 		;
 		
 ExpList : Exp  {
@@ -261,9 +269,18 @@ Type : INT {
 				}
 		;
 Exp : LPAREN Exp RPAREN {
+	BiNode* p_binode = dynamic_cast<BiNode*>($2);
+	if (p_binode) {
+		$$ = new BiNode();
+		$$->type = "BOOL";
+		dynamic_cast<BiNode*>($$)->true_list = p_binode->true_list;
+		dynamic_cast<BiNode*>($$)->false_list = p_binode->false_list;
+	}
+	else {
 		$$ = new Node();
-		$$->type = $2->type;
-		$$->reg_num = $2->reg_num;
+        $$->type = $2->type;
+        $$->reg_num = $2->reg_num;
+	}
 }
 		| Exp MUL Exp {HANDLE_BINOP($1, $3, $$, "MUL")} 
 		| Exp DIV Exp {HANDLE_BINOP($1, $3, $$, "DIV")} 
@@ -282,28 +299,50 @@ Exp : LPAREN Exp RPAREN {
 		| Exp AND Exp {if ($1->type != "BOOL" || $3->type != "BOOL") MISMATCH
 				$$ = new Node();
 				$$->type = "BOOL";}
-		| Exp OR Exp {
-				if ($1->type != "BOOL" || $3->type != "BOOL") MISMATCH
-				$$ = new Node();
-				$$->type = "BOOL";
+		| Exp OR M Exp {
+				if ($1->type != "BOOL" || $4->type != "BOOL") MISMATCH
+
+				$$ = new BiNode();
+				dynamic_cast<BiNode*>($$)->type = "BOOL";
+				cbr.bpatch(dynamic_cast<BiNode*>($1)->false_list, dynamic_cast<M*>($3)->label);
+				dynamic_cast<BiNode*>($$)->true_list = cbr.merge(dynamic_cast<BiNode*>($1)->true_list, dynamic_cast<BiNode*>($4)->true_list);
+				dynamic_cast<BiNode*>($$)->false_list = dynamic_cast<BiNode*>($4)->false_list;
+
 		}
 		| NUM {
 				//$$ = new Node();
 				$$->type = "INT";
 				ir.assign_reg("i32", $$->value, $$);
 				}
-		| ID { 	
-			$$ = new Node();
-			$$->type = check_var_return_type($1->id);
+		| ID { 
+			const string& ty = check_var_return_type($1->id);
+			if (ty == "BOOL") 
+				$$ = new BiNode();
+			else
+				$$ = new Node();
+			
+			$$->type = ty;
 			ir.load_local_var(get_entry($1->id)->offset, $$->type, $$);
+			if (ty == "BOOL") 
+				ir.icmp_bool_var((BiNode*)$$, $$->reg_num);
 		 }
-		| Call {$$ = new Node(); $$->type = $1->type; }
+		| Call {
+			if ($1->type == "BOOL") {
+				$$ = new BiNode();
+				dynamic_cast<BiNode*>($$)->true_list = dynamic_cast<BiNode*>($1)->true_list;
+				dynamic_cast<BiNode*>($$)->false_list = dynamic_cast<BiNode*>($1)->false_list;
+			}
+			else {
+				$$ = new Node();
+			}
+			$$->next_list = $1->next_list;
+			$$->reg_num = $1->reg_num;
+			$$->type = $1->type; }
 		| NUM B {
 			if ($1->value > 255) {
 				output::errorByteTooLarge(yylineno, to_string($1->value));
 				exit(0);
 			} 
-			//$$ = new Node();
 			$$->type = "BYTE";
 			ir.assign_reg("i8", $$->value, $$);
 			}
@@ -313,14 +352,24 @@ Exp : LPAREN Exp RPAREN {
 				$$ = new BiNode();
 				$$->type = "BOOL";
 				$$->value = 1;
+				int loc = cbr.emit("\tbr label @");
+    			dynamic_cast<BiNode*>($$)->true_list = cbr.makelist({loc, FIRST});
+				//ir.temp_bool_reg("1");
+				//ir.handle_true(dynamic_cast<BiNode*>($$));
 				}
 		| FALSE {$$ = new BiNode();
 				$$->type = "BOOL";
-				$$->value = 0;}
+				$$->value = 0;
+				int loc = cbr.emit("\tbr label @");
+				dynamic_cast<BiNode*>($$)->false_list = cbr.makelist({loc, FIRST});
+				ir.temp_bool_reg("0");
+				}
 		| NOT Exp {
 				if ($2->type != "BOOL") MISMATCH
-				$$ = new Node();
+				$$ = new BiNode();
 				$$->type = "BOOL";
+				dynamic_cast<BiNode*>($$)->true_list = dynamic_cast<BiNode*>($2)->false_list;
+				dynamic_cast<BiNode*>($$)->false_list = dynamic_cast<BiNode*>($2)->true_list;
 		}
 		;
 

@@ -18,10 +18,11 @@ struct Reg {
 class ManageIR {
     vector<Reg> regs;
     CodeBuffer& cbr = CodeBuffer::instance();
-    public:
+    bool last_bpatch = true;
+public:
     Reg new_temp();
     void def_func(const string& id, const string& ret_type, vector<string>& arg_types);
-    void end_func(const string& ret_type);
+    void end_func(const string& ret_type, Node* s);
     void assign_reg(const string& type, long value, Node* pNode);
     void store_local_var(int offset, const string& type, Node* pNode);
     void load_local_var(int offset, const string &type, Node *pNode);
@@ -35,22 +36,21 @@ class ManageIR {
                                   const string &op_type);
     Reg getelement_from_stack(int offset);
     void bpatch_if_else_statement(Node* s,
-                                  Node* s1,
                                   Node* n,
-                                  Node* s2,
                                   BiNode* p_binode,
                                   const string &true_label,
-                                  const string &false_label);
+                                  const string &false_label,
+                                  Node* n2);
     void equality(BiNode* p_binode,
                   int* r1,
                   int* r2,
                   const string& op,
                   const string& ty1,
                   const string& ty2);
-    void try_if_else(BiNode* p_binode);
-    void gen_label_and_goto_it();
-
-
-
-
+    void gen_label_and_goto_it(Node* s);
+    void return_exp(int reg_num, const string& ty);
+    void icmp_bool_var(BiNode* p_binode, int reg_num);
+    void temp_bool_reg(const string& one_or_zero);
+    //void phi();
+    int get_bool(BiNode* p_binode);
 };
