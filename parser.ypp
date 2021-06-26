@@ -194,7 +194,7 @@ Statement : LBRACE Statements RBRACE {
 				}
 				ir.return_exp($2->reg_num, $2->type);
 			}
-			| IF LPAREN MarkerBoolExp RPAREN M Statement MarkerELSE N M Statement N {
+			| IF LPAREN MarkerBoolExp RPAREN M Statement ELSE N M Statement N {
 				ir.bpatch_if_else_statement($$, $8, dynamic_cast<BiNode*>($3), (dynamic_cast<M*>($5))->label, (dynamic_cast<M*>($9))->label, $11);
 				end_of_scope_operations();
 				}
