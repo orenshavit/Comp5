@@ -40,16 +40,17 @@ public:
                                   BiNode* p_binode,
                                   const string &true_label,
                                   const string &false_label,
-                                  Node* n2);
+                                  Node* s1,
+                                  Node* s2);
     void bpatch_if_statement(Node* s,
                              BiNode* p_binode,
                              const string &true_label,
-                             Node* n);
+                             Node* s1);
     void bpatch_while(Node* s,
                       const string &m1_label,
                       BiNode* b,
                       const string &m2_label,
-                      Node* n);
+                      Node* s1);
     void relop(BiNode* p_binode,
                int* r1,
                int* r2,
@@ -61,4 +62,5 @@ public:
     void icmp_bool_var(BiNode* p_binode, int reg_num);
     int get_bool(BiNode* p_binode);
     void emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* given_m);
+    void empty_goto(Node* s);
 };

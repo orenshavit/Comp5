@@ -259,24 +259,27 @@ void ManageIR::bpatch_if_else_statement(Node* s,
                                         BiNode* p_binode,
                                         const string &true_label,
                                         const string &false_label,
-                                        Node* n2) {
+                                        Node* s1,
+                                        Node* s2
+                                        ) {
     cbr.bpatch(p_binode->true_list, true_label);
     cbr.bpatch(p_binode->false_list, false_label);
-    s->next_list = cbr.merge(n->next_list, n2->next_list);
+    auto temp = cbr.merge(s1->next_list, n->next_list);
+    s->next_list = cbr.merge(temp, s2->next_list);
     last_bpatch = true;
 }
 
 void ManageIR::bpatch_if_statement(Node* s,
                                    BiNode* p_binode,
                                    const string &true_label,
-                                   Node* n) {
+                                   Node* s1) {
     cbr.bpatch(p_binode->true_list, true_label);
-    s->next_list = cbr.merge(p_binode->false_list, n->next_list);
+    s->next_list = cbr.merge(p_binode->false_list, s1->next_list);
     last_bpatch = true;
 }
 
-void ManageIR::bpatch_while(Node *s, const string &m1_label, BiNode *b, const string &m2_label, Node *n) {
-    cbr.bpatch(n->next_list, m1_label);
+void ManageIR::bpatch_while(Node *s, const string &m1_label, BiNode *b, const string &m2_label, Node *s1) {
+    cbr.bpatch(s1->next_list, m1_label);
     cbr.bpatch(b->true_list, m2_label);
     s->next_list = b->false_list;
     cbr.emit("\tbr label %" + m1_label);
@@ -311,6 +314,11 @@ void ManageIR::emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* gi
     cbr.emit(cmd);
     s->next_list = cl->next_list;
 
+}
+
+void ManageIR::empty_goto(Node* s) {
+    int loc = cbr.emit("\tbr label @");
+    s->next_list = cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST));
 }
 
 
