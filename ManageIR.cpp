@@ -306,8 +306,25 @@ void ManageIR::emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* gi
     string cmd = "\tswitch " +
             llvm_ty + " " +
             num2name(exp_reg_num) +
-            ", label %"+
-            cl->default_label +" [\n";
+            ", label ";
+
+    bool default_defined = false;
+    if (cl->default_label != "") {
+        default_defined = true;
+        cmd += "%" + cl->default_label;
+    }
+    else
+        cmd += "@";
+    cmd += " [\n";
+
+    int loc = cbr.emit(cmd);
+    cmd = "";
+    if (!default_defined) {
+        s->next_list = cbr.makelist({loc, FIRST});
+    }
+    s->next_list = cbr.merge(s->next_list, brk_list);
+    s->next_list = cbr.merge(s->next_list, cl->next_list);
+    brk_list = {};
 
     int value;
     string label;
@@ -321,8 +338,6 @@ void ManageIR::emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* gi
         cmd += "\t\t" + llvm_ty + " " + to_string(value) + ", label %" + label + "\n";
     }
     cbr.emit(cmd + "\t]");
-    s->next_list = cbr.merge(cl->next_list, brk_list);
-    brk_list = {};
 
 }
 
@@ -354,9 +369,10 @@ void ManageIR::cl_c_cl_rule(CL *given_cl, Node *given_c, CL *cl1) {
 }
 
 void ManageIR::cl_c_rule(CL *cl, Node *given_c) {
-    cl = new CL();
+    //cl = new CL();
     auto c = dynamic_cast<C*>(given_c);
     cl->quad_list.push(c->quad);
+   // cl->default_label
     cl->value_list.push(c->value);
     cl->next_list = c->next_list;
 }
