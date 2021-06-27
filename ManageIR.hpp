@@ -51,8 +51,8 @@ public:
                       BiNode* b,
                       const string &m2_label,
                       Node* s1,
-                      vector<pair<int,BranchLabelIndex>>& global_next_list,
-                      vector<pair<int,BranchLabelIndex>>& while_list,
+                      vector<pair<int,BranchLabelIndex>>& brk_list,
+                      vector<pair<int,BranchLabelIndex>>& cont_list,
                       Node* n);
     void relop(BiNode* p_binode,
                int* r1,
@@ -65,9 +65,8 @@ public:
     void icmp_bool_var(BiNode* p_binode, int reg_num);
     int get_bool(BiNode* p_binode);
     void emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* given_m,
-                     vector<pair<int,BranchLabelIndex>>& global_next_list);
+                     vector<pair<int,BranchLabelIndex>>& brk_list);
     void goto_next_of_s(Node* s);
-    void dbg_switch_cl(C* c, CL* cl1, CL* cl);
     void dbg_list(Node* n);
     void goto_specific_list(vector<pair<int, BranchLabelIndex>>& next_list);
     void cl_c_cl_rule(CL* , Node* , CL*);

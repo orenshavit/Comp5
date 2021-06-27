@@ -278,24 +278,24 @@ void ManageIR::bpatch_if_statement(Node* s,
 }
 
 void ManageIR::bpatch_while(Node *s, const string &m1_label, BiNode *b, const string &m2_label, Node *s1,
-                            vector<pair<int,BranchLabelIndex>>& global_next_list,
-                            vector<pair<int,BranchLabelIndex>>& while_list,
+                            vector<pair<int,BranchLabelIndex>>& brk_list,
+                            vector<pair<int,BranchLabelIndex>>& cont_list,
                             Node* n) {
-    cbr.bpatch(while_list, m1_label);
-    while_list = {};
+    cbr.bpatch(cont_list, m1_label);
+    cont_list = {};
     cbr.bpatch(n->next_list, m1_label);
 
     cbr.bpatch(s1->next_list, m1_label);
     cbr.bpatch(b->true_list, m2_label);
     s->next_list = b->false_list;
     cbr.emit("\tbr label %" + m1_label);
-    s->next_list = cbr.merge(s->next_list, global_next_list);
-    global_next_list = {};
+    s->next_list = cbr.merge(s->next_list, brk_list);
+    brk_list = {};
     last_bpatch = true;
 }
 
 void ManageIR::emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* given_m,
-                           vector<pair<int,BranchLabelIndex>>& global_next_list) {
+                           vector<pair<int,BranchLabelIndex>>& brk_list) {
     auto m = dynamic_cast<M*>(given_m);
     cbr.bpatch(n->next_list, m->label); // like goto init
     auto cl = dynamic_cast<CL*>(given_cl);
@@ -321,18 +321,14 @@ void ManageIR::emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* gi
         cmd += "\t\t" + llvm_ty + " " + to_string(value) + ", label %" + label + "\n";
     }
     cbr.emit(cmd + "\t]");
-    s->next_list = cbr.merge(cl->next_list, global_next_list);
-    global_next_list = {};
+    s->next_list = cbr.merge(cl->next_list, brk_list);
+    brk_list = {};
 
 }
 
 void ManageIR::goto_next_of_s(Node* s) {
     int loc = cbr.emit("\tbr label @");
     s->next_list = cbr.merge(s->next_list, cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST)));
-}
-
-void ManageIR::dbg_switch_cl(C *c, CL *cl1, CL *cl) {
-
 }
 
 void ManageIR::dbg_list(Node *n) {

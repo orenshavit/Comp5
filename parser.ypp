@@ -53,6 +53,10 @@
 	vector<pair<int,BranchLabelIndex>> while_list = {};
 	vector<pair<int,BranchLabelIndex>> global_next_list = {};
 
+	stack<vector<pair<int,BranchLabelIndex>>> cont_lists_stack = {};
+	stack<vector<pair<int,BranchLabelIndex>>> brk_lists_stack = {};
+
+
 %}
 
 %token VOID 
@@ -215,7 +219,9 @@ Statement : LBRACE Statements RBRACE {
 			| WHILE MarkerWhile LPAREN N M MarkerBoolExp RPAREN M Statement {
 				string m1_label =  (dynamic_cast<M*>($5))->label;
 				ir.bpatch_while($$, m1_label, dynamic_cast<BiNode*>($6), (dynamic_cast<M*>($8))->label, $9,
-				global_next_list, while_list, $4);
+				brk_lists_stack.top(), cont_lists_stack.top(), $4);
+				cont_lists_stack.pop();
+				brk_lists_stack.pop();
 				in_while.pop();
 				end_of_scope_operations();
 				ir.goto_next_of_s($$);
@@ -225,18 +231,20 @@ Statement : LBRACE Statements RBRACE {
 					output::errorUnexpectedBreak(yylineno);
 					exit(0);
 				}
-				ir.goto_specific_list(global_next_list);
+				//ir.goto_specific_list(global_next_list);
+				ir.goto_specific_list(brk_lists_stack.top());
 			}
 			| CONTINUE SC { 
 				if (in_while.empty()) {
 					output::errorUnexpectedContinue(yylineno);
 					exit(0);
-				}
-				ir.goto_specific_list(while_list);
+				}		
+				ir.goto_specific_list(cont_lists_stack.top());
 			}
 			| SWITCH MarkerSwitch LPAREN MarkerNumericExp N RPAREN LBRACE CaseList RBRACE M {
-				ir.emit_switch($$, $4, $5, $8, $10, global_next_list);
+				ir.emit_switch($$, $4, $5, $8, $10, brk_lists_stack.top());
 				in_switch.pop();
+				brk_lists_stack.pop();
 				end_of_scope_operations();
 				ir.goto_next_of_s($$);
 			}
@@ -247,10 +255,16 @@ N : {
 	$$ = new Node();
 	int loc = cbr.emit("\tbr label @");
 	$$->next_list = cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST));};
-MarkerWhile : { in_while.push(true);
+MarkerWhile : {
+	in_while.push(true);
+	cont_lists_stack.push({});
+	brk_lists_stack.push({});
  } ;
  
-MarkerSwitch : { in_switch.push(true); } ;
+MarkerSwitch : {
+	in_switch.push(true);
+	brk_lists_stack.push({});
+	} ;
 MarkerNumericExp : Exp {
 	if (NOT_NUMERIC($1->type)) MISMATCH
 	} ;
