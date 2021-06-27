@@ -51,6 +51,7 @@
 	ManageIR ir;
 
 	vector<pair<int,BranchLabelIndex>> while_list = {};
+	vector<pair<int,BranchLabelIndex>> global_next_list = {};
 
 %}
 
@@ -92,9 +93,10 @@ Program : Funcs {}
 		;
 
 FuncDecl : RetType MarkerID LPAREN Formals RPAREN MarkerLBRACE Statements RBRACE {
-																	ir.end_func(current_func.ret_type, $7);
-																	current_func = FunctionDecl();
-																	end_of_scope_operations();
+	if (current_func.ret_type == "VOID") {cbr.popCmd();}
+	ir.end_func(current_func.ret_type, $7);
+	current_func = FunctionDecl();
+	end_of_scope_operations();
 																	}
 		;
 
@@ -108,9 +110,7 @@ MarkerLBRACE : LBRACE {
 		for (uint i = 0; i < current_func.arg_names.size(); i++) {
 				new_formal(current_func.arg_names.at(i), -i-1, current_func.arg_types.at(i)); 
 		}
-		current_func.arg_types = vector<string>();
-}
-
+		current_func.arg_types = vector<string>();}
 Funcs : {}
 		| FuncDecl Funcs {}
 		;
@@ -130,30 +130,28 @@ FormalDecl : Type ID  {
 			exit(0);
 		}
 		current_func.arg_types.push_back($1->type);
-		current_func.arg_names.push_back($2->id);
-}
+		current_func.arg_names.push_back($2->id);}
 				;
 Statements : Statement { 
 						$$ = new Node();
-						$$->next_list = $1->next_list;
+						$$->next_list = cbr.merge($$->next_list, $1->next_list);
 						}
 			| Statements M Statement {
 				cbr.bpatch($1->next_list, dynamic_cast<M*>($2)->label);
-				//cbr.bpatch($2->next_list, dynamic_cast<M*>($3)->label);
 				$$ = new Node();
-				$$->next_list = $3->next_list;
-				cbr.emit("");
+				$$->next_list = cbr.merge($$->next_list, $3->next_list);
 			}
 			;
 Statement : LBRACE Statements RBRACE {
 				end_of_scope_operations();
-				ir.empty_goto($$);
+				ir.goto_next_of_s($$);
+				$$->next_list = cbr.merge($$->next_list, $2->next_list);
 				}
 			| Type ID SC  {
 
 				ir.assign_reg(ir.to_llvm_type($1->type), 0, $2);
 				new_var($2->id, $1->type, $2, $1->type);
-				ir.empty_goto($$);
+				ir.goto_next_of_s($$);
 				}
 
 
@@ -168,7 +166,7 @@ Statement : LBRACE Statements RBRACE {
                     $2->reg_num = ir.get_bool(dynamic_cast<BiNode*>($4));
                 }
                 new_var($2->id, ltype, $2, rtype);
-				ir.empty_goto($$);
+				ir.goto_next_of_s($$);
 				}
 
 
@@ -182,100 +180,85 @@ Statement : LBRACE Statements RBRACE {
                     $2->reg_num = ir.get_bool(dynamic_cast<BiNode*>($3));
                 }
                 ir.store_local_var(get_offset($1->id), ltype, $1, rtype);
-				ir.empty_goto($$);
+				ir.goto_next_of_s($$);
 				}
 
-
-
 			| Call SC {
-				ir.empty_goto($$);
-			}
+				ir.goto_next_of_s($$);}
 			| RETURN SC {
-				if (current_func.ret_type != "VOID") MISMATCH
-				// ? empty_goto ?
-			}
+				if (current_func.ret_type != "VOID") MISMATCH}
+				
+				// ? goto_next_of_s ?}
 			| RETURN Exp SC {
-				if (current_func.ret_type != $2->type || current_func.ret_type == "VOID") MISMATCH
+				if (current_func.ret_type == "VOID") MISMATCH
+				if (current_func.ret_type != $2->type && !(current_func.ret_type == "INT" && $2->type == "BYTE")) MISMATCH
 				if ($2->type == "BOOL") {
 					int bool_reg_num = ir.get_bool(dynamic_cast<BiNode*>($2));
 					$2->reg_num = bool_reg_num;
 				}
 				ir.return_exp($2->reg_num, $2->type);
-				// ? empty_goto ?
+				// ? goto_next_of_s ?
 			}
 			| IF LPAREN MarkerBoolExp RPAREN M Statement MarkerELSE N M Statement {
+
 				ir.bpatch_if_else_statement($$, $8, dynamic_cast<BiNode*>($3), (dynamic_cast<M*>($5))->label, (dynamic_cast<M*>($9))->label, $6, $10);
 				end_of_scope_operations();
-				ir.empty_goto($$);
+				ir.goto_next_of_s($$);
 				}
 			| IF LPAREN MarkerBoolExp RPAREN M Statement {
+				    $$ = new Node();
 			        ir.bpatch_if_statement($$, dynamic_cast<BiNode*>($3), (dynamic_cast<M*>($5))->label, $6);
-					ir.empty_goto($$);
+					ir.goto_next_of_s($$);
 					end_of_scope_operations();
-					}
-
+					}			
+			
 			| WHILE MarkerWhile LPAREN N M MarkerBoolExp RPAREN M Statement {
-				string m1_label = (dynamic_cast<M*>($5))->label;
-				cbr.bpatch(while_list, m1_label);
-				cbr.bpatch($4->next_list, m1_label);
-				ir.bpatch_while($$, m1_label, dynamic_cast<BiNode*>($6), (dynamic_cast<M*>($8))->label, $9);
+				string m1_label =  (dynamic_cast<M*>($5))->label;
+				ir.bpatch_while($$, m1_label, dynamic_cast<BiNode*>($6), (dynamic_cast<M*>($8))->label, $9,
+				global_next_list, while_list, $4);
 				in_while.pop();
 				end_of_scope_operations();
-				ir.empty_goto($$);
+				ir.goto_next_of_s($$);
 				}
 			| BREAK SC {
 				if (in_while.empty() && in_switch.empty()) {
 					output::errorUnexpectedBreak(yylineno);
 					exit(0);
 				}
-				// ir.empty_goto($$); ?
+				ir.goto_specific_list(global_next_list);
 			}
 			| CONTINUE SC { 
 				if (in_while.empty()) {
 					output::errorUnexpectedContinue(yylineno);
 					exit(0);
 				}
-				int loc = cbr.emit("\tbr label @");
-				while_list = cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST));
-
+				ir.goto_specific_list(while_list);
 			}
 			| SWITCH MarkerSwitch LPAREN MarkerNumericExp N RPAREN LBRACE CaseList RBRACE M {
-				ir.emit_switch($$, $4, $5, $8, $10);
+				ir.emit_switch($$, $4, $5, $8, $10, global_next_list);
 				in_switch.pop();
 				end_of_scope_operations();
-				ir.empty_goto($$);
-				 }
+				ir.goto_next_of_s($$);
+			}
 			;
-
-
 M : {
-	$$ = new M();
-};
-
+	$$ = new M();};
 N : {
 	$$ = new Node();
 	int loc = cbr.emit("\tbr label @");
-	$$->next_list = cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST));
-};
-
+	$$->next_list = cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST));};
 MarkerWhile : { in_while.push(true);
  } ;
  
 MarkerSwitch : { in_switch.push(true); } ;
-
 MarkerNumericExp : Exp {
 	if (NOT_NUMERIC($1->type)) MISMATCH
-	
-} ;
-
+	} ;
 MarkerBoolExp : Exp {
-	if ($1->type != "BOOL") MISMATCH
-};
+	if ($1->type != "BOOL") MISMATCH};
 
 MarkerELSE : ELSE {end_of_scope_operations();};
-
 Call : ID LPAREN ExpList RPAREN { 
-								cbr.emit("; Call->ID...");
                                 const string& type =  check_func_return_type($1->id);
                                 if (type == "BOOL") {
                                     $$ = new BiNode();
@@ -433,37 +416,31 @@ Exp :
 		}
 		;
 
-CaseDecl : CASE NUM COLON M Statements N {
+CaseDecl : CASE NUM COLON M Statements {
+	ir.dbg_list($5);
 	string quad = dynamic_cast<M*>($4)->label;
 	$$ = new C();
 	dynamic_cast<C*>($$)->quad = quad;
 	dynamic_cast<C*>($$)->value = $2->value;
-	dynamic_cast<C*>($$)->next_list = $6->next_list;
+	dynamic_cast<C*>($$)->next_list = $5->next_list;
+	
 }
 		;
 
 CaseList : CaseDecl CaseList {
-	$$ = new CL();
-	auto cl1 = dynamic_cast<CL*>($2);
-	auto c = dynamic_cast<C*>($1);
-	dynamic_cast<CL*>($$)->quad_list = cl1->quad_list;
-	dynamic_cast<CL*>($$)->quad_list.push(c->quad);
-	dynamic_cast<CL*>($$)->value_list = cl1->value_list;
-	dynamic_cast<CL*>($$)->value_list.push(c->value);
-	dynamic_cast<CL*>($$)->next_list = cbr.merge(cl1->next_list, c->next_list);
-	dynamic_cast<CL*>($$)->default_label = cl1->default_label;}
-		| CaseDecl {
 			$$ = new CL();
-			auto c = dynamic_cast<C*>($1);
-			dynamic_cast<CL*>($$)->quad_list.push(c->quad);
-			dynamic_cast<CL*>($$)->value_list.push(c->value);
-			dynamic_cast<CL*>($$)->next_list = c->next_list;
+			ir.cl_c_cl_rule(dynamic_cast<CL*>($$), $1, dynamic_cast<CL*>($2));
+			}
+		| CaseDecl {
+			ir.cl_c_rule(dynamic_cast<CL*>($$), $1);
+			
 		}
-		| DEFAULT COLON M Statements N {
+		| DEFAULT COLON M Statements {
 			string quad = dynamic_cast<M*>($3)->label;
 			$$ = new CL();
+			dynamic_cast<CL*>($$)->quad_list.push(quad);
 			dynamic_cast<CL*>($$)->default_label = quad;
-			dynamic_cast<CL*>($$)->next_list = $5->next_list;
+			dynamic_cast<CL*>($$)->next_list = $4->next_list;
 		}
 		;
 

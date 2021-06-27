@@ -71,6 +71,10 @@ void CodeBuffer::printGlobalBuffer()
 	}
 }
 
+void CodeBuffer::popCmd() {
+    buffer.pop_back();
+}
+
 // ******** Helper Methods ********** //
 bool replace(string& str, const string& from, const string& to, const BranchLabelIndex index) {
 	size_t pos;

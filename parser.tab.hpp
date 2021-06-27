@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.7.6.  */
+/* A Bison parser, made by GNU Bison 3.5.1.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2021 Free Software Foundation,
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
    Inc.
 
    This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -31,9 +31,8 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
-/* DO NOT RELY ON FEATURES THAT ARE NOT DOCUMENTED in the manual,
-   especially those whose name start with YY_ or yy_.  They are
-   private implementation details that can be changed or removed.  */
+/* Undocumented macros, especially those whose name start with YY_,
+   are private implementation details.  Do not rely on them.  */
 
 #ifndef YY_YY_PARSER_TAB_HPP_INCLUDED
 # define YY_YY_PARSER_TAB_HPP_INCLUDED
@@ -45,54 +44,49 @@
 extern int yydebug;
 #endif
 
-/* Token kinds.  */
+/* Token type.  */
 #ifndef YYTOKENTYPE
 # define YYTOKENTYPE
   enum yytokentype
   {
-    YYEMPTY = -2,
-    YYEOF = 0,                     /* "end of file"  */
-    YYerror = 256,                 /* error  */
-    YYUNDEF = 257,                 /* "invalid token"  */
-    VOID = 258,                    /* VOID  */
-    INT = 259,                     /* INT  */
-    BYTE = 260,                    /* BYTE  */
-    B = 261,                       /* B  */
-    BOOL = 262,                    /* BOOL  */
-    OR = 263,                      /* OR  */
-    AND = 264,                     /* AND  */
-    RETURN = 265,                  /* RETURN  */
-    WHILE = 266,                   /* WHILE  */
-    BREAK = 267,                   /* BREAK  */
-    CONTINUE = 268,                /* CONTINUE  */
-    SWITCH = 269,                  /* SWITCH  */
-    CASE = 270,                    /* CASE  */
-    DEFAULT = 271,                 /* DEFAULT  */
-    SC = 272,                      /* SC  */
-    COMMA = 273,                   /* COMMA  */
-    COLON = 274,                   /* COLON  */
-    ASSIGN = 275,                  /* ASSIGN  */
-    ID = 276,                      /* ID  */
-    STRING = 277,                  /* STRING  */
-    ILLEGAL = 278,                 /* ILLEGAL  */
-    LPAREN = 279,                  /* LPAREN  */
-    RPAREN = 280,                  /* RPAREN  */
-    LBRACE = 281,                  /* LBRACE  */
-    RBRACE = 282,                  /* RBRACE  */
-    IF = 283,                      /* IF  */
-    ELSE = 284,                    /* ELSE  */
-    TRUE = 285,                    /* TRUE  */
-    FALSE = 286,                   /* FALSE  */
-    NUM = 287,                     /* NUM  */
-    EQUALITY = 288,                /* EQUALITY  */
-    RELATION = 289,                /* RELATION  */
-    NOT = 290,                     /* NOT  */
-    ADD = 291,                     /* ADD  */
-    SUB = 292,                     /* SUB  */
-    MUL = 293,                     /* MUL  */
-    DIV = 294                      /* DIV  */
+    VOID = 258,
+    INT = 259,
+    BYTE = 260,
+    B = 261,
+    BOOL = 262,
+    OR = 263,
+    AND = 264,
+    RETURN = 265,
+    WHILE = 266,
+    BREAK = 267,
+    CONTINUE = 268,
+    SWITCH = 269,
+    CASE = 270,
+    DEFAULT = 271,
+    SC = 272,
+    COMMA = 273,
+    COLON = 274,
+    ASSIGN = 275,
+    ID = 276,
+    STRING = 277,
+    ILLEGAL = 278,
+    LPAREN = 279,
+    RPAREN = 280,
+    LBRACE = 281,
+    RBRACE = 282,
+    IF = 283,
+    ELSE = 284,
+    TRUE = 285,
+    FALSE = 286,
+    NUM = 287,
+    EQUALITY = 288,
+    RELATION = 289,
+    NOT = 290,
+    ADD = 291,
+    SUB = 292,
+    MUL = 293,
+    DIV = 294
   };
-  typedef enum yytokentype yytoken_kind_t;
 #endif
 
 /* Value type.  */

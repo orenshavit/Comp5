@@ -17,49 +17,49 @@ define void @print(i8*) {
 
 define void @main() {
 	%st_ptr = alloca i32, i32 50
-	%t0 = add i32 0, 0
+	%t0 = add i32 777, 0
 ; S->Type ID ASSIGN Exp SC
 	%t1 = getelementptr i32, i32* %st_ptr, i32 0
 	store i32 %t0, i32* %t1
 	br label %label_24
 label_24:
-	br label %label_26
-label_26:
-	%t2 = getelementptr i32, i32* %st_ptr, i32 0
-	%t3 = load i32, i32* %t2
-	%t4 = add i32 10, 0
-	%t5 = icmp slt i32 %t3, %t4
-	br i1 %t5, label %label_32, label %label_61
-label_32:
-	%t6 = getelementptr i32, i32* %st_ptr, i32 0
-	%t7 = load i32, i32* %t6
-	%t8 = add i32 1, 0
-	%t9 = add i32 %t7, %t8
-	%t10 = getelementptr i32, i32* %st_ptr, i32 0
-	store i32 %t9, i32* %t10
-	br label %label_40
-label_40:
-	%t11 = getelementptr i32, i32* %st_ptr, i32 0
-	%t12 = load i32, i32* %t11
-	%t13 = add i32 2, 0
-	%t14 = icmp eq i32 %t12, %t13
-	br i1 %t14, label %label_46, label %label_51
-label_46:
-	br label %label_26
-	br label %label_51
-
-	br label %label_51
-label_51:
-	%t15 = getelementptr i32, i32* %st_ptr, i32 0
-	%t16 = load i32, i32* %t15
-; Call->ID...
-	call void @printi(i32%t16)
-
-	br label %label_26
-	br label %label_26
-
-	br label %label_61
-label_61:
+	%t2 = add i32 2, 0
+	br label %label_49
+label_27:
+	%t3 = add i32 1, 0
+	call void @printi(i32%t3)
+	br label %label_31
+label_31:
+	br label %label_52
+label_33:
+	%t5 = add i32 2, 0
+	call void @printi(i32%t5)
+	br label %label_37
+label_37:
+	%t7 = add i32 3, 0
+	call void @printi(i32%t7)
+	br label %label_41
+label_41:
+	%t9 = add i32 4, 0
+	call void @printi(i32%t9)
+	br label %label_45
+label_45:
+	%t11 = add i32 0, 0
+	call void @printi(i32%t11)
+	br label %label_52
+label_49:
+	switch i32 %t2, label %label_45 [
+		i32 1, label %label_27
+		i32 2, label %label_33
+		i32 3, label %label_37
+		i32 4, label %label_41
+	]
+	br label %label_52
+label_52:
+	%t13 = add i32 5555, 0
+	call void @printi(i32%t13)
+	br label %label_56
+label_56:
 	ret void
 }
 

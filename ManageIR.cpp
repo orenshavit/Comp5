@@ -48,7 +48,7 @@ void ManageIR::def_func(const string& id,
 
 void ManageIR::gen_label_and_goto_it(Node* s) {
     int loc = cbr.emit("\tbr label @");
-    auto list = cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST));
+    auto list = cbr.merge(s->next_list, cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST)));
     if (last_bpatch) {
         list = cbr.merge(list, s->next_list);
     }
@@ -234,7 +234,6 @@ void ManageIR::icmp_bool_var(BiNode* p_binode, int reg_num) {
 //}
 
 int ManageIR::get_bool(BiNode* p_binode) {
-    cbr.emit("");
     cbr.emit("\t; Getting Bool Using Phi");
     const string &true_label = cbr.genLabel();
     int next_loc_1 = cbr.emit("\tbr label @");
@@ -278,17 +277,27 @@ void ManageIR::bpatch_if_statement(Node* s,
     last_bpatch = true;
 }
 
-void ManageIR::bpatch_while(Node *s, const string &m1_label, BiNode *b, const string &m2_label, Node *s1) {
+void ManageIR::bpatch_while(Node *s, const string &m1_label, BiNode *b, const string &m2_label, Node *s1,
+                            vector<pair<int,BranchLabelIndex>>& global_next_list,
+                            vector<pair<int,BranchLabelIndex>>& while_list,
+                            Node* n) {
+    cbr.bpatch(while_list, m1_label);
+    while_list = {};
+    cbr.bpatch(n->next_list, m1_label);
+
     cbr.bpatch(s1->next_list, m1_label);
     cbr.bpatch(b->true_list, m2_label);
     s->next_list = b->false_list;
     cbr.emit("\tbr label %" + m1_label);
+    s->next_list = cbr.merge(s->next_list, global_next_list);
+    global_next_list = {};
     last_bpatch = true;
 }
 
-void ManageIR::emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* given_m) {
+void ManageIR::emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* given_m,
+                           vector<pair<int,BranchLabelIndex>>& global_next_list) {
     auto m = dynamic_cast<M*>(given_m);
-    cbr.bpatch(n->next_list, m->label);
+    cbr.bpatch(n->next_list, m->label); // like goto init
     auto cl = dynamic_cast<CL*>(given_cl);
     string ty = exp->type;
     int exp_reg_num = exp->reg_num;
@@ -297,7 +306,7 @@ void ManageIR::emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* gi
     string cmd = "\tswitch " +
             llvm_ty + " " +
             num2name(exp_reg_num) +
-            ", label "+
+            ", label %"+
             cl->default_label +" [\n";
 
     int value;
@@ -309,16 +318,51 @@ void ManageIR::emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* gi
         label = cl->quad_list.top();
         cl->quad_list.pop();
 
-        cmd += "\t\t" + llvm_ty + " " + to_string(value) + ", label " + label + "\n]";
+        cmd += "\t\t" + llvm_ty + " " + to_string(value) + ", label %" + label + "\n";
     }
-    cbr.emit(cmd);
-    s->next_list = cl->next_list;
+    cbr.emit(cmd + "\t]");
+    s->next_list = cbr.merge(cl->next_list, global_next_list);
+    global_next_list = {};
 
 }
 
-void ManageIR::empty_goto(Node* s) {
+void ManageIR::goto_next_of_s(Node* s) {
     int loc = cbr.emit("\tbr label @");
-    s->next_list = cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST));
+    s->next_list = cbr.merge(s->next_list, cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST)));
+}
+
+void ManageIR::dbg_switch_cl(C *c, CL *cl1, CL *cl) {
+
+}
+
+void ManageIR::dbg_list(Node *n) {
+
+}
+
+void ManageIR::goto_specific_list(vector<pair<int, BranchLabelIndex>>& next_list) {
+    int loc = cbr.emit("\tbr label @");
+    next_list = cbr.merge(next_list, cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST)));
+}
+
+void ManageIR::cl_c_cl_rule(CL *given_cl, Node *given_c, CL *cl1) {
+    string last_quad = cl1->quad_list.top();
+    auto c = dynamic_cast<C*>(given_c);
+    auto cl = dynamic_cast<CL*>(given_cl);
+    cl->quad_list = cl1->quad_list;
+    cl->quad_list.push(c->quad);
+    cl->value_list = cl1->value_list;
+    cl->value_list.push(c->value);
+    cbr.bpatch(c->next_list, last_quad);
+    cl->next_list = cl1->next_list;
+    cl->default_label = cl1->default_label;
+}
+
+void ManageIR::cl_c_rule(CL *cl, Node *given_c) {
+    cl = new CL();
+    auto c = dynamic_cast<C*>(given_c);
+    cl->quad_list.push(c->quad);
+    cl->value_list.push(c->value);
+    cl->next_list = c->next_list;
 }
 
 
