@@ -68,9 +68,13 @@ void ManageIR::gen_label_and_goto_it(Node* s) {
 }
 
 void ManageIR::end_func(const string &ret_type, Node* s) {
+    gen_label_and_goto_it(s);
     if (ret_type == "VOID") {
         gen_label_and_goto_it(s);
         cbr.emit("\tret void");
+    }
+    else {
+        cbr.emit("\tret " + to_llvm_type(ret_type) + " 0");
     }
     cbr.emit("}");
     cbr.emit("");
