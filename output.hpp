@@ -15,6 +15,7 @@ class Node {
     string type;
     long value;
     int reg_num;
+    bool is_arg;
     vector<pair<int,BranchLabelIndex>> next_list;
     virtual ~Node() = default;
 };

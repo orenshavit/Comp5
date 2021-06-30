@@ -29,13 +29,11 @@ public:
     void push_string_to_emitGlobal(const string &id, const string &type);
     void getelement_string_from_stack(const string &id,  const string &reg_name);
     void emit_print_functions();
-    int call_func(const string& id, const string& ret_type, stack<pair<string, int>> &args);
+    int call_func(const string& id, const string& ret_type, stack<Node*> &args);
     string to_llvm_type(const string& type);
-    void binop(const string &op, int* r1, int* r2,
-               const string &ty1, const string &ty2,
+    void binop(const string &op, Node* exp1, Node* exp2,
                Node* p_res_node);
-    void zext_if_needed(int* r1, int* r2, const string &ty1, const string &ty2,
-                                  const string &op_type);
+    void zext_if_needed(Node* exp1, Node* exp2, const string &op_type);
     Reg getelement_from_stack(int offset);
     void bpatch_if_else_statement(Node* s,
                                   Node* n,
@@ -57,15 +55,13 @@ public:
                       vector<pair<int,BranchLabelIndex>>& cont_list,
                       Node* n);
     void relop(BiNode* p_binode,
-               int* r1,
-               int* r2,
                const string& op,
-               const string& ty1,
-               const string& ty2);
+               Node* exp1,
+               Node* exp2);
     void gen_label_and_goto_it(Node* s);
-    void return_exp(int reg_num, const string& ty);
-    void icmp_bool_var(BiNode* p_binode, int reg_num);
-    int get_bool(BiNode* p_binode);
+    void return_exp(Node* exp, const string& ty);
+    void icmp_bool_var(BiNode* p_binode, Node* exp);
+    int get_bool_into_reg(BiNode* p_binode);
     void emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* given_m,
                      vector<pair<int,BranchLabelIndex>>& brk_list);
     void goto_next_of_s(Node* s);
@@ -73,4 +69,5 @@ public:
     void goto_specific_list(vector<pair<int, BranchLabelIndex>>& next_list);
     void cl_c_cl_rule(CL* , Node* , CL*);
     void cl_c_rule(CL* , Node*);
+    int get_called_bool_exps(Node* exp);
 };

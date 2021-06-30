@@ -3,15 +3,16 @@
 #include <utility>
 #define P(s) cout << s << endl
 
-string num2name(int num) {
-    return "%t"+ to_string(num);
+/*
+ * Static Methods
+ */
+static string larger_type(const string& ty1, const string& ty2);
+static string op2llvm(const string& op);
+static string num2name(int num, bool is_arg = false) {
+    string name = "%";
+    if (!is_arg) name += "t";
+    return name + to_string(num);
 }
-Reg ManageIR::new_temp() {
-    int size = regs.size();
-    regs.push_back(Reg(size, num2name(size)));
-    return regs.back();
-}
-
 static string to_lower(const string& s) {
     string res;
     for (const char& c : s){
@@ -19,6 +20,14 @@ static string to_lower(const string& s) {
     }
     return res;
 }
+
+Reg ManageIR::new_temp() {
+    int size = regs.size();
+    regs.push_back(Reg(size, num2name(size)));
+    return regs.back();
+}
+
+
 
 string ManageIR::to_llvm_type(const string& type) {
     if (type == "INT")
@@ -126,7 +135,7 @@ void ManageIR::emit_print_functions() {
 
 int ManageIR::call_func(const string &id,
                          const string &ret_type,
-                         stack<pair<string, int>> &args) {
+                         stack<Node*> &args) {
     string cmd = "\t";
     Reg ret_reg = new_temp();
     if (ret_type != "VOID") {
@@ -135,7 +144,8 @@ int ManageIR::call_func(const string &id,
     cmd += "call " + to_llvm_type(ret_type) + " @" + id + "(";
     while (!args.empty()) {
        auto arg = args.top();
-       cmd += to_llvm_type(arg.first) + num2name(arg.second);
+       cmd += to_llvm_type(arg->type) + num2name(arg->reg_num, arg->is_arg);
+       if (args.size() != 1) cmd += ", ";
        args.pop();
     }
     cmd += ")";
@@ -143,38 +153,70 @@ int ManageIR::call_func(const string &id,
     return ret_reg.num;
 }
 
-void ManageIR::zext_if_needed(int* r1, int* r2, const string &ty1, const string &ty2,
-                           const string &op_type) {
+void ManageIR::zext_if_needed(Node* exp1, Node* exp2, const string &op_type) {
+    int* r1 = &(exp1->reg_num);
+    int* r2 = &(exp2->reg_num);
+    const string& ty1 = exp1->type;
+    const string& ty2 = exp2->type;
     if (op_type == "INT") {
         if (ty1 == "BYTE") {
             Reg reg = new_temp();
-            cbr.emit("\t" + reg.name + " = zext i8 " + num2name(*r1) + " to i32");
+            cbr.emit("\t" + reg.name + " = zext i8 " + num2name(*r1, exp1->is_arg) + " to i32");
             *r1 = reg.num;
         }
         if (ty2 == "BYTE") {
             Reg reg = new_temp();
-            cbr.emit("\t" + reg.name + " = zext i8 " + num2name(*r2) + " to i32");
+            cbr.emit("\t" + reg.name + " = zext i8 " + num2name(*r2, exp2->is_arg) + " to i32");
             *r2 = reg.num;
         }
     }
 }
 
-void ManageIR::binop(const string &op, int* r1, int* r2,
-                     const string &ty1, const string &ty2,
+void ManageIR::relop(BiNode* p_binode,
+                     const string& op,
+                     Node* exp1,
+                     Node* exp2) {
+    int* r1 = &(exp1->reg_num);
+    int* r2 = &(exp2->reg_num);
+    const string& ty1 = exp1->type;
+    const string& ty2 = exp2->type;
+
+    Reg reg = new_temp();
+    string cmd = "\t" + reg.name + " = icmp ";
+    cmd += op2llvm(op);
+    const string& op_type = larger_type(ty1, ty2);
+    cmd += to_llvm_type(op_type);
+    zext_if_needed(exp1, exp2, op_type);
+    cmd += " " + num2name(*r1, exp1->is_arg) + ", " + num2name(*r2, exp2->is_arg);
+    cbr.emit(cmd);
+
+    int loc = cbr.emit("\tbr i1 " + reg.name + ", label @, label @");
+    p_binode->true_list = cbr.merge(p_binode->true_list, cbr.makelist({loc, FIRST}));
+    p_binode->false_list = cbr.merge(p_binode->false_list, cbr.makelist({loc, SECOND}));
+}
+
+void ManageIR::binop(const string &op, Node* exp1, Node* exp2,
                      Node* p_res_node) {
+    int* r1 = &(exp1->reg_num);
+    int* r2 = &(exp2->reg_num);
     const string &op_type = p_res_node->type;
-    zext_if_needed(r1, r2, ty1, ty2, op_type);
+    zext_if_needed(exp1, exp2, op_type);
     auto reg = new_temp();
     p_res_node->reg_num = reg.num;
     string cmd = "\t" + reg.name + " = ";
     if (op == "DIV") cmd += "sdiv";
     else cmd += to_lower(op);
-    cmd += " " + to_llvm_type(op_type) + " " + num2name(*r1) + ", " + num2name(*r2);
+    cmd += " " + to_llvm_type(op_type) + " " + num2name(*r1, exp1->is_arg) + ", " + num2name(*r2, exp2->is_arg);
     cbr.emit(cmd);
 
 }
 
 void ManageIR::load_local_var(int offset, const string &type, Node *pNode) {
+    if (offset < 0) { // function argument
+        pNode->reg_num = -(offset + 1);
+        pNode->is_arg = true;
+        return;
+    }
     Reg right_ptr = getelement_from_stack(offset);
     Reg reg = new_temp();
     cbr.emit("\t" + reg.name + " = load i32, i32* " + right_ptr.name);
@@ -210,7 +252,7 @@ static string larger_type(const string& ty1, const string& ty2) {
     return "BYTE";
 }
 
-string op2llvm(const string& op) {
+static string op2llvm(const string& op) {
     if (op == "==") return "eq ";
     if (op == "!=") return "ne ";
     if (op == "<") return "slt ";
@@ -219,45 +261,25 @@ string op2llvm(const string& op) {
     return "sge ";
 }
 
-void ManageIR::relop(BiNode* p_binode,
-                     int* r1, int* r2,
-                     const string& op,
-                     const string& ty1,
-                     const string& ty2) {
-    Reg reg = new_temp();
-    string cmd = "\t" + reg.name + " = icmp ";
-    cmd += op2llvm(op);
-    const string& op_type = larger_type(ty1, ty2);
-    cmd += to_llvm_type(op_type);
-    zext_if_needed(r1, r2, ty1, ty2, op_type);
-    cmd += " " + num2name(*r1) + ", " + num2name(*r2);
-    cbr.emit(cmd);
-
-    int loc = cbr.emit("\tbr i1 " + reg.name + ", label @, label @");
-    p_binode->true_list = cbr.merge(p_binode->true_list, cbr.makelist({loc, FIRST}));
-    p_binode->false_list = cbr.merge(p_binode->false_list, cbr.makelist({loc, SECOND}));
+void ManageIR::return_exp(Node* exp, const string& ty) {
+    cbr.emit("\tret " + to_llvm_type(ty) + " " + num2name(exp->reg_num, exp->is_arg));
 }
 
-void ManageIR::return_exp(int reg_num, const string& ty) {
-    cbr.emit("\tret " + to_llvm_type(ty) + " " + num2name(reg_num));
-}
-
-void ManageIR::icmp_bool_var(BiNode* p_binode, int reg_num) {
+void ManageIR::icmp_bool_var(BiNode* p_binode, Node* exp) {
     Reg reg = new_temp();
-    cbr.emit("\t" + reg.name + " = icmp eq i1 " + num2name(reg_num) + ", 1");
+    cbr.emit("\t" + reg.name + " = icmp eq i1 " + num2name(exp->reg_num, exp->is_arg) + ", 1");
     int loc = cbr.emit("\tbr i1 " + reg.name + ", label @, label @");
     p_binode->true_list = cbr.merge(p_binode->true_list, cbr.makelist({loc, FIRST}));
     p_binode->false_list = cbr.merge(p_binode->false_list, cbr.makelist({loc, SECOND}));
 
 }
-
 //void ManageIR::temp_bool_reg(const string& one_or_zero) {
 //    Reg reg = new_temp();
 //    cbr.emit("\t" + reg.name + " = add i1 " + one_or_zero + ", 0");
 //
 //}
 
-int ManageIR::get_bool(BiNode* p_binode) {
+int ManageIR::get_bool_into_reg(BiNode* p_binode) {
     cbr.emit("\t; Getting Bool Using Phi");
     const string &true_label = cbr.genLabel();
     int next_loc_1 = cbr.emit("\tbr label @");
@@ -329,7 +351,7 @@ void ManageIR::emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* gi
     string llvm_ty = to_llvm_type(ty);
     string cmd = "\tswitch " +
             llvm_ty + " " +
-            num2name(exp_reg_num) +
+            num2name(exp_reg_num, exp->is_arg) +
             ", label ";
 
     bool default_defined = false;
@@ -399,6 +421,15 @@ void ManageIR::cl_c_rule(CL *cl, Node *given_c) {
    // cl->default_label
     cl->value_list.push(c->value);
     cl->next_list = c->next_list;
+}
+
+int ManageIR::get_called_bool_exps(Node* exp) {
+    int reg_num = exp->reg_num;
+    if (exp->type == "BOOL") {
+        BiNode* bi_exp = dynamic_cast<BiNode*>(exp);
+        reg_num = get_bool_into_reg(bi_exp);
+    }
+    return reg_num;
 }
 
 
