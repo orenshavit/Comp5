@@ -27,6 +27,8 @@ string ManageIR::to_llvm_type(const string& type) {
         return "i8";
     else if (type == "BOOL")
         return "i1";
+    else if (type == "STRING")
+        return "i8*";
     return "void";
 }
 
@@ -70,7 +72,13 @@ void ManageIR::assign_reg(const string& type, long value, Node* pNode) {
     auto reg = new_temp();
     string reg_name = reg.name;
     pNode->reg_num = reg.num;
-    cbr.emit("\t" + reg_name + " = add " + type + " " + to_string(value) + ", 0");
+    if (pNode->type == "STRING"){
+        getelement_string_from_stack(pNode->id, reg_name);
+    }
+    else {
+        cbr.emit("\t" + reg_name + " = add " + type + " " + to_string(value) +
+                 ", 0");
+    }
     last_bpatch = false;
 }
 
@@ -80,7 +88,23 @@ Reg ManageIR::getelement_from_stack(int offset) {
     return ptr;
 }
 
+void ManageIR::getelement_string_from_stack(const string &id, const string &reg_name) {
+    auto size = id.size();
+    auto string_val = id.substr(1,id.size() -2);
+    cbr.emit("\t" + reg_name + " = getelementptr [" +  to_string(size) + " x i8], [" +  to_string(size) + " x i8]* @." + string_val +"_str, i32 0, i32 0");
+}
+
+void ManageIR::push_string_to_emitGlobal(const string &id, const string &type){
+    auto size = id.size();
+    auto string_val = id.substr(1,id.size() -2);
+
+    auto str = "@." + string_val + "_str = internal constant [" +  to_string(size) + " x i8] c\"" + string_val + "\\0A\\00\"";
+    cbr.emitGlobal(str);
+}
+
+
 void ManageIR::emit_print_functions() {
+    cbr.printGlobalBuffer();
     cbr.emit("declare i32 @printf(i8*, ...)");
     cbr.emit("declare void @exit(i32)");
     cbr.emit("@.int_specifier = constant [4 x i8] c\"%d\\0A\\00\"");

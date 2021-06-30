@@ -26,6 +26,8 @@ public:
     void assign_reg(const string& type, long value, Node* pNode);
     void store_local_var(int offset, const string& ltype, Node* left_pNode, const string& rtype);
     void load_local_var(int offset, const string &type, Node *pNode);
+    void push_string_to_emitGlobal(const string &id, const string &type);
+    void getelement_string_from_stack(const string &id,  const string &reg_name);
     void emit_print_functions();
     int call_func(const string& id, const string& ret_type, stack<pair<string, int>> &args);
     string to_llvm_type(const string& type);

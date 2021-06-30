@@ -405,8 +405,11 @@ Exp :
 			$$->type = "BYTE";
 			ir.assign_reg("i8", $$->value, $$);
 			}
-		| STRING {$$ = new Node();
-				$$->type = "STRING";}
+		| STRING {
+				$$->type = "STRING";
+				ir.push_string_to_emitGlobal($$->id, $$->type);
+				ir.assign_reg("i8", $$->value, $$);
+				}
 		| TRUE { 
 				$$ = new BiNode();
 				$$->type = "BOOL";
@@ -601,8 +604,9 @@ int main() {
 		new_func("print", "VOID", print_args);
 		vector<string> printi_args = {"INT"};
 		new_func("printi", "VOID", printi_args);
-		ir.emit_print_functions();
 		yyparse();
+
+		ir.emit_print_functions();
 		SymbolsTable* global_symbol_table = tables_stack.top();
 		bool found = false;
 		for (TableEntry* entry : global_symbol_table->entries) {

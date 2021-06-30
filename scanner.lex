@@ -75,7 +75,11 @@ default return DEFAULT;
     yylval = new Node();
     yylval->value = 0;
     return NUM; }
-\"{char}+\" return STRING;
+\"{char}+\" {
+                yylval = new Node();
+                yylval->id = yytext;
+                return STRING;
+                }
 {relation} {
     yylval = new Node();
     yylval->type = string(yytext);
