@@ -449,6 +449,7 @@ CaseList : CaseDecl CaseList {
 			ir.cl_c_cl_rule(dynamic_cast<CL*>($$), $1, dynamic_cast<CL*>($2));
 			}
 		| CaseDecl {
+		    $$ = new CL();
 			ir.cl_c_rule(dynamic_cast<CL*>($$), $1);
 			
 		}

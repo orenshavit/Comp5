@@ -599,7 +599,7 @@ static const yytype_int16 yyrline[] =
      252,   254,   258,   264,   268,   271,   274,   275,   286,   300,
      304,   309,   313,   317,   323,   336,   337,   338,   339,   340,
      347,   353,   360,   370,   375,   387,   400,   408,   410,   417,
-     424,   433,   444,   448,   452
+     424,   433,   444,   448,   453
 };
 #endif
 
@@ -2119,14 +2119,15 @@ yyreduce:
   case 63:
 #line 448 "parser.ypp"
                            {
+		    yyval = new CL();
 			ir.cl_c_rule(dynamic_cast<CL*>(yyval), yyvsp[0]);
 			
 		}
-#line 2126 "parser.tab.cpp"
+#line 2127 "parser.tab.cpp"
     break;
 
   case 64:
-#line 452 "parser.ypp"
+#line 453 "parser.ypp"
                                              {
 			string quad = dynamic_cast<M*>(yyvsp[-1])->label;
 			yyval = new CL();
@@ -2134,11 +2135,11 @@ yyreduce:
 			dynamic_cast<CL*>(yyval)->default_label = quad;
 			dynamic_cast<CL*>(yyval)->next_list = yyvsp[0]->next_list;
 		}
-#line 2138 "parser.tab.cpp"
+#line 2139 "parser.tab.cpp"
     break;
 
 
-#line 2142 "parser.tab.cpp"
+#line 2143 "parser.tab.cpp"
 
       default: break;
     }
@@ -2370,7 +2371,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 461 "parser.ypp"
+#line 462 "parser.ypp"
 
 
 void yyerror(const char* c) {
