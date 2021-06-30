@@ -68,7 +68,6 @@ void ManageIR::gen_label_and_goto_it(Node* s) {
 }
 
 void ManageIR::end_func(const string &ret_type, Node* s) {
-
     if (ret_type == "VOID") {
         gen_label_and_goto_it(s);
         cbr.emit("\tret void");
@@ -85,8 +84,7 @@ void ManageIR::assign_reg(const string& type, long value, Node* pNode) {
         getelement_string_from_stack(pNode->id, reg_name);
     }
     else {
-        cbr.emit("\t" + reg_name + " = add " + type + " " + to_string(value) +
-                 ", 0");
+        cbr.emit("\t" + reg_name + " = add " + type + " " + to_string(value) + ", 0");
     }
     last_bpatch = false;
 }
