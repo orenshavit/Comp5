@@ -117,7 +117,7 @@ void ManageIR::getelement_string(const string &id, const string &reg_name) {
 void ManageIR::push_string_to_emitGlobal(const string &id){
     auto size = id.size();
     auto string_val = id.substr(1,id.size() -2);
-    if (str_map.find(id) == str_map.end()) {
+    if (str_map.find(string_val) == str_map.end()) {
         auto name = str2name(string_val);
         auto str = "@." + name + " = internal constant [" + to_string(size-1) +
                    " x i8] c\"" + string_val + "\\00\"";
