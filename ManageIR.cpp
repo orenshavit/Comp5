@@ -107,7 +107,7 @@ Reg ManageIR::getelement_from_stack(int offset) {
 }
 
 void ManageIR::getelement_string_from_stack(const string &id, const string &reg_name) {
-    auto size = id.size();
+    auto size = id.size()-1;
     auto string_val = id.substr(1,id.size() -2);
     auto name = str2name(id);
     cbr.emit("\t" + reg_name + " = getelementptr [" +  to_string(size) + " x i8], [" +  to_string(size) + " x i8]* @." + name +", i32 0, i32 0");
@@ -116,9 +116,12 @@ void ManageIR::getelement_string_from_stack(const string &id, const string &reg_
 void ManageIR::push_string_to_emitGlobal(const string &id, const string &type){
     auto size = id.size();
     auto string_val = id.substr(1,id.size() -2);
-    auto name = str2name(id);
-    auto str = "@." + name + " = internal constant [" +  to_string(size) + " x i8] c\"" + string_val + " \\00\" ";
-    cbr.emitGlobal(str);
+    if (str_map.find(id) == str_map.end()) {
+        auto name = str2name(id);
+        auto str = "@." + name + " = internal constant [" + to_string(size-1) +
+                   " x i8] c\"" + string_val + "\\00\"";
+        cbr.emitGlobal(str);
+    }
 }
 
 void ManageIR::emit_print_functions() {
@@ -193,6 +196,9 @@ void ManageIR::binop(const string &op, Node* exp1, Node* exp2,
     zext_if_needed(exp1, exp2, op_type);
     auto reg = new_temp();
     p_res_node->reg_num = reg.num;
+
+
+
     string cmd = "\t" + reg.name + " = ";
     if (op == "DIV") cmd += "sdiv";
     else cmd += to_lower(op);
