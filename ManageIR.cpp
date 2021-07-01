@@ -20,6 +20,14 @@ static string to_lower(const string& s) {
     }
     return res;
 }
+string ManageIR::str2name(const string& str1) {
+    if (str_map.find(str1) == str_map.end()){
+        int size = str_map.size();
+        str_map.insert(pair<string, int>(str1, size +1));
+    }
+    return "str" + to_string(str_map[str1]);
+}
+
 
 Reg ManageIR::new_temp() {
     int size = regs.size();
@@ -102,14 +110,15 @@ Reg ManageIR::getelement_from_stack(int offset) {
 void ManageIR::getelement_string_from_stack(const string &id, const string &reg_name) {
     auto size = id.size();
     auto string_val = id.substr(1,id.size() -2);
-    cbr.emit("\t" + reg_name + " = getelementptr [" +  to_string(size) + " x i8], [" +  to_string(size) + " x i8]* @." + string_val +"_str, i32 0, i32 0");
+    auto name = str2name(id);
+    cbr.emit("\t" + reg_name + " = getelementptr [" +  to_string(size) + " x i8], [" +  to_string(size) + " x i8]* @." + name +", i32 0, i32 0");
 }
 
 void ManageIR::push_string_to_emitGlobal(const string &id, const string &type){
     auto size = id.size();
     auto string_val = id.substr(1,id.size() -2);
-
-    auto str = "@." + string_val + "_str = internal constant [" +  to_string(size) + " x i8] c\"" + string_val + "\\0A\\00\"";
+    auto name = str2name(id);
+    auto str = "@." + name + " = internal constant [" +  to_string(size) + " x i8] c\"" + string_val + "\\0A\\00\"";
     cbr.emitGlobal(str);
 }
 
