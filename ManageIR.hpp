@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <map>
 #include <iostream>
 #include <bits/stdc++.h>
 
@@ -18,6 +19,7 @@ struct Reg {
 
 class ManageIR {
     vector<Reg> regs;
+    map<string, int> str_map;
     CodeBuffer& cbr = CodeBuffer::instance();
     bool last_bpatch = true;
 public:
@@ -33,6 +35,7 @@ public:
     int call_func(const string& id, const string& ret_type, stack<Node*> &args,
                   unordered_map<string, FuncTypes>& hash_funcs, Node* exp_list = nullptr);
     string to_llvm_type(const string& type);
+    string str2name(const string& str1);
     void binop(const string &op, Node* exp1, Node* exp2,
                Node* p_res_node);
     void zext_if_needed(Node* exp1, Node* exp2, const string &op_type);
