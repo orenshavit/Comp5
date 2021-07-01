@@ -29,7 +29,7 @@ public:
     void push_string_to_emitGlobal(const string &id, const string &type);
     void getelement_string_from_stack(const string &id,  const string &reg_name);
     void emit_print_functions();
-    int call_func(const string& id, const string& ret_type, stack<Node*> &args);
+    int call_func(const string& id, const string& ret_type, stack<Node*> &args, Node* exp_list = nullptr);
     string to_llvm_type(const string& type);
     void binop(const string &op, Node* exp1, Node* exp2,
                Node* p_res_node);
@@ -61,7 +61,7 @@ public:
     void gen_label_and_goto_it(Node* s);
     void return_exp(Node* exp, const string& ty);
     void icmp_bool_var(BiNode* p_binode, Node* exp);
-    int get_bool_into_reg(BiNode* p_binode);
+    int get_bool_into_reg(BiNode* p_binode, Node* exp_list = nullptr);
     void emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* given_m,
                      vector<pair<int,BranchLabelIndex>>& brk_list);
     void goto_next_of_s(Node* s);
@@ -69,5 +69,10 @@ public:
     void goto_specific_list(vector<pair<int, BranchLabelIndex>>& next_list);
     void cl_c_cl_rule(CL* , Node* , CL*);
     void cl_c_rule(CL* , Node*);
-    int get_called_bool_exps(Node* exp);
+    int get_called_bool_exp(Node* exp, Node* exp_list = nullptr);
+    void explist_exp(Node* exp, stack<Node*>& called_exps,
+                     stack<string>& called_arg_types, Node* exp_list);
+    void explist_exp_explist(Node* first_exp_list, Node* exp, Node* n, const string& m_label, Node* exp_list,
+                             stack<Node *> &called_exps,
+                             stack<string> &called_arg_types);
 };

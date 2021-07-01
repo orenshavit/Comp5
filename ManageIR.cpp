@@ -131,26 +131,6 @@ void ManageIR::emit_print_functions() {
     cbr.emit("");
 }
 
-int ManageIR::call_func(const string &id,
-                         const string &ret_type,
-                         stack<Node*> &args) {
-    string cmd = "\t";
-    Reg ret_reg = new_temp();
-    if (ret_type != "VOID") {
-        cmd += ret_reg.name + " = ";
-    }
-    cmd += "call " + to_llvm_type(ret_type) + " @" + id + "(";
-    while (!args.empty()) {
-       auto arg = args.top();
-       cmd += to_llvm_type(arg->type) + num2name(arg->reg_num, arg->is_arg);
-       if (args.size() != 1) cmd += ", ";
-       args.pop();
-    }
-    cmd += ")";
-    cbr.emit(cmd);
-    return ret_reg.num;
-}
-
 void ManageIR::zext_if_needed(Node* exp1, Node* exp2, const string &op_type) {
     int* r1 = &(exp1->reg_num);
     int* r2 = &(exp2->reg_num);
@@ -191,6 +171,7 @@ void ManageIR::relop(BiNode* p_binode,
     int loc = cbr.emit("\tbr i1 " + reg.name + ", label @, label @");
     p_binode->true_list = cbr.merge(p_binode->true_list, cbr.makelist({loc, FIRST}));
     p_binode->false_list = cbr.merge(p_binode->false_list, cbr.makelist({loc, SECOND}));
+
 }
 
 void ManageIR::binop(const string &op, Node* exp1, Node* exp2,
@@ -276,26 +257,6 @@ void ManageIR::icmp_bool_var(BiNode* p_binode, Node* exp) {
 //    cbr.emit("\t" + reg.name + " = add i1 " + one_or_zero + ", 0");
 //
 //}
-
-int ManageIR::get_bool_into_reg(BiNode* p_binode) {
-    cbr.emit("\t; Getting Bool Using Phi");
-    const string &true_label = cbr.genLabel();
-    int next_loc_1 = cbr.emit("\tbr label @");
-
-    const string &false_label = cbr.genLabel();
-    int next_loc_2 = cbr.emit("\tbr label @");
-
-    const string &next_label = cbr.genLabel();
-    auto list = cbr.merge(cbr.makelist({next_loc_1, FIRST}), cbr.makelist({next_loc_2, FIRST}));
-    cbr.bpatch(list, next_label);
-    Reg phi_reg = new_temp();
-    cbr.emit("\t" + phi_reg.name + " = phi i1 [1, %" + true_label + "], [0, %" + false_label + "]");
-
-    cbr.bpatch(p_binode->true_list, true_label);
-    cbr.bpatch(p_binode->false_list, false_label);
-
-    return phi_reg.num;
-}
 
 void ManageIR::bpatch_if_else_statement(Node* s,
                                         Node* n,
@@ -421,13 +382,86 @@ void ManageIR::cl_c_rule(CL *cl, Node *given_c) {
     cl->next_list = c->next_list;
 }
 
-int ManageIR::get_called_bool_exps(Node* exp) {
+int ManageIR::call_func(const string &id,
+                        const string &ret_type,
+                        stack<Node*> &args,
+                        Node* exp_list) {
+    if (exp_list != nullptr && !exp_list->next_list.empty())
+        cbr.bpatch(exp_list->next_list, cbr.genLabel());
+
+    string cmd = "\t";
+    Reg ret_reg = new_temp();
+    if (ret_type != "VOID") {
+        cmd += ret_reg.name + " = ";
+    }
+    cmd += "call " + to_llvm_type(ret_type) + " @" + id + "(";
+    while (!args.empty()) {
+        auto arg = args.top();
+        cmd += to_llvm_type(arg->type) + num2name(arg->reg_num, arg->is_arg);
+        if (args.size() != 1) cmd += ", ";
+        args.pop();
+    }
+    cmd += ")";
+    cbr.emit(cmd);
+    return ret_reg.num;
+}
+
+int ManageIR::get_bool_into_reg(BiNode* p_binode, Node* exp_list) {
+    cbr.emit("\t; Getting Bool Using Phi");
+    const string &true_label = cbr.genLabel();
+    int next_loc_1 = cbr.emit("\tbr label @");
+
+    const string &false_label = cbr.genLabel();
+    int next_loc_2 = cbr.emit("\tbr label @");
+
+    const string &next_label = cbr.genLabel();
+    auto list = cbr.merge(cbr.makelist({next_loc_1, FIRST}), cbr.makelist({next_loc_2, FIRST}));
+    cbr.bpatch(list, next_label);
+    Reg phi_reg = new_temp();
+    cbr.emit("\t" + phi_reg.name + " = phi i1 [1, %" + true_label + "], [0, %" + false_label + "]");
+
+    cbr.bpatch(p_binode->true_list, true_label);
+    cbr.bpatch(p_binode->false_list, false_label);
+
+    return phi_reg.num;
+}
+
+
+int ManageIR::get_called_bool_exp(Node* exp, Node* exp_list) {
     int reg_num = exp->reg_num;
     if (exp->type == "BOOL") {
         BiNode* bi_exp = dynamic_cast<BiNode*>(exp);
-        reg_num = get_bool_into_reg(bi_exp);
+        reg_num = get_bool_into_reg(bi_exp, exp_list);
     }
     return reg_num;
+}
+
+void ManageIR::explist_exp(Node *exp, stack<Node *> &called_exps,
+                           stack<string> &called_arg_types, Node* exp_list) {
+    cbr.emit("; ExpList : Exp");
+//    string next_label = dynamic_cast<M*>(m)->label;
+//    cbr.bpatch(n->next_list, next_label);
+    BiNode* bi_exp = dynamic_cast<BiNode*>(exp);
+    called_arg_types.push(exp->type);
+    exp->reg_num = get_called_bool_exp(exp, exp_list);
+    if (exp_list != nullptr){
+        int loc = cbr.emit("\tbr label @");
+        exp_list->next_list = cbr.makelist({loc, FIRST});
+    }
+    called_exps.push(exp);
+
+}
+
+void ManageIR::explist_exp_explist(Node* first_exp_list, Node *exp, Node *n, const string& m_label, Node *second_exp_list,
+                                   stack<Node *> &called_exps,
+                                   stack<string> &called_arg_types) {
+    cbr.emit("; ExpList : Exp COMMA N M ExpList and M label is " + m_label);
+    cbr.bpatch(n->next_list, m_label);
+    called_arg_types.push(exp->type);
+    exp->reg_num = get_called_bool_exp(exp, second_exp_list);
+    called_exps.push(exp);
+    first_exp_list->next_list = second_exp_list->next_list;
+    cbr.emit("\tbr label %" + m_label);
 }
 
 
