@@ -107,17 +107,18 @@ Reg ManageIR::getelement_from_stack(int offset) {
 }
 
 void ManageIR::getelement_string(const string &id, const string &reg_name) {
-    auto size = id.size()-1;
+    auto size = id.size();
     auto string_val = id.substr(1,id.size() -2);
-    auto name = str2name(id);
-    cbr.emit("\t" + reg_name + " = getelementptr [" +  to_string(size) + " x i8], [" +  to_string(size) + " x i8]* @." + name +", i32 0, i32 0");
+    auto name = str2name(string_val);
+    cbr.emit("\t" + reg_name + " = getelementptr [" +  to_string(size-1) + " x i8], [" +
+        to_string(size-1) + " x i8]* @." + name +", i32 0, i32 0");
 }
 
 void ManageIR::push_string_to_emitGlobal(const string &id){
     auto size = id.size();
     auto string_val = id.substr(1,id.size() -2);
     if (str_map.find(id) == str_map.end()) {
-        auto name = str2name(id);
+        auto name = str2name(string_val);
         auto str = "@." + name + " = internal constant [" + to_string(size-1) +
                    " x i8] c\"" + string_val + "\\00\"";
         cbr.emitGlobal(str);
@@ -189,14 +190,14 @@ void ManageIR::relop(BiNode* p_binode, const string& op, Node* exp1, Node* exp2)
 
 void ManageIR::check_zero_div(Node* exp2) {
     Reg reg = new_temp();
-    cbr.emit("\t" + reg.name + " = icmp eq " + to_llvm_type(exp2->type) +
+    cbr.emit("\t" + reg.name + " = icmp eq " + to_llvm_type(exp2->type) + " " +
              num2name(exp2->reg_num, exp2->is_arg) + ", 0");
     int loc = cbr.emit("\tbr i1 " + reg.name + ", label @, label @");
     auto true_list = cbr.makelist({loc, FIRST});
     auto false_list = cbr.makelist({loc, SECOND});
     string true_label = cbr.genLabel();
     auto str_ptr = new_temp();
-    getelement_string("Error division by zero", str_ptr.name);
+    getelement_string("\"Error division by zero\"", str_ptr.name);
     cbr.emit("\tcall void @print(i8*" + str_ptr.name + ")");
     auto temp_int = new_temp();
     cbr.emit("\t" + temp_int.name + " = add i32 0, 0");
