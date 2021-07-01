@@ -82,4 +82,5 @@ public:
                              stack<string> &called_arg_types);
     vector<Node*> cast_bytes_to_ints(const string &id, stack<Node*> &args, vector<string>& exp_func_args);
     void check_zero_div(Node* exp2);
+    void handle_stupid_call(Node* call, Node* s);
 };

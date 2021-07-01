@@ -196,8 +196,7 @@ void ManageIR::check_zero_div(Node* exp2) {
                     to_llvm_type(exp2->type)+ " " + num2name(exp2->reg_num, exp2->is_arg) + " to i32");
     else
         temp = Reg(exp2->reg_num, num2name(exp2->reg_num, exp2->is_arg));
-//    else
-//        cbr.emit("\t" + temp.name + " = add " + to_llvm_type(exp2->type) + " " + temp.name + ", 0");
+
 
     cbr.emit("\t" + icmp_reg.name + " = icmp eq i32" + " " +
              temp.name + ", 0");
@@ -488,10 +487,6 @@ int ManageIR::call_func(const string &id,
     cmd += ")";
     cbr.emit(cmd);
     args = {};
-
-
-
-
     return ret_reg.num;
 }
 
@@ -514,7 +509,6 @@ int ManageIR::get_bool_into_reg(BiNode* p_binode, Node* exp_list) {
 
     return phi_reg.num;
 }
-
 
 int ManageIR::get_called_bool_exp(Node* exp, Node* exp_list) {
     int reg_num = exp->reg_num;
@@ -548,6 +542,13 @@ void ManageIR::explist_exp_explist(Node* first_exp_list, Node *exp, Node *n, con
     called_exps.push(exp);
     first_exp_list->next_list = second_exp_list->next_list;
     cbr.emit("\tbr label %" + m_label);
+}
+
+void ManageIR::handle_stupid_call(Node* call, Node* s) {
+    if (call->type != "BOOL") return;
+    BiNode* bi_call = dynamic_cast<BiNode*>(call);
+    s->next_list = cbr.merge(s->next_list, bi_call->true_list);
+    s->next_list = cbr.merge(s->next_list, bi_call->false_list);
 }
 
 

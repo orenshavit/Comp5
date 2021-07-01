@@ -183,6 +183,7 @@ Statement : LBRACE Statements RBRACE {
 				ir.goto_next_of_s($$);
 				}
 			| Call SC {
+			    ir.handle_stupid_call($1, $$);
 				ir.goto_next_of_s($$);}
 			| RETURN SC {
 				if (current_func.ret_type != "VOID") MISMATCH
