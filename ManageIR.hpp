@@ -27,10 +27,10 @@ public:
     void def_func(const string& id, const string& ret_type, vector<string>& arg_types);
     void end_func(const string& ret_type, Node* s);
     void assign_reg(const string& type, long value, Node* pNode);
-    void store_local_var(int offset, const string& ltype, Node* left_pNode, const string& rtype);
+    void store_local_var(int offset, const string& ltype, Node* left_pNode, const string& rtype, Node* exp);
     void load_local_var(int offset, const string &type, Node *pNode);
-    void push_string_to_emitGlobal(const string &id, const string &type);
-    void getelement_string_from_stack(const string &id,  const string &reg_name);
+    void push_string_to_emitGlobal(const string &id);
+    void getelement_string(const string &id, const string &reg_name);
     void emit_print_functions();
     int call_func(const string& id, const string& ret_type, stack<Node*> &args,
                   unordered_map<string, FuncTypes>& hash_funcs, Node* exp_list = nullptr);
@@ -81,4 +81,5 @@ public:
                              stack<Node *> &called_exps,
                              stack<string> &called_arg_types);
     vector<Node*> cast_bytes_to_ints(const string &id, stack<Node*> &args, vector<string>& exp_func_args);
+    void check_zero_div(Node* exp2);
 };

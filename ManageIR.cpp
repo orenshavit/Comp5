@@ -92,7 +92,7 @@ void ManageIR::assign_reg(const string& type, long value, Node* pNode) {
     string reg_name = reg.name;
     pNode->reg_num = reg.num;
     if (pNode->type == "STRING"){
-        getelement_string_from_stack(pNode->id, reg_name);
+        getelement_string(pNode->id, reg_name);
     }
     else {
         cbr.emit("\t" + reg_name + " = add " + type + " " + to_string(value) + ", 0");
@@ -106,14 +106,14 @@ Reg ManageIR::getelement_from_stack(int offset) {
     return ptr;
 }
 
-void ManageIR::getelement_string_from_stack(const string &id, const string &reg_name) {
+void ManageIR::getelement_string(const string &id, const string &reg_name) {
     auto size = id.size()-1;
     auto string_val = id.substr(1,id.size() -2);
     auto name = str2name(id);
     cbr.emit("\t" + reg_name + " = getelementptr [" +  to_string(size) + " x i8], [" +  to_string(size) + " x i8]* @." + name +", i32 0, i32 0");
 }
 
-void ManageIR::push_string_to_emitGlobal(const string &id, const string &type){
+void ManageIR::push_string_to_emitGlobal(const string &id){
     auto size = id.size();
     auto string_val = id.substr(1,id.size() -2);
     if (str_map.find(id) == str_map.end()) {
@@ -166,10 +166,7 @@ void ManageIR::zext_if_needed(Node* exp1, Node* exp2, const string &op_type) {
     }
 }
 
-void ManageIR::relop(BiNode* p_binode,
-                     const string& op,
-                     Node* exp1,
-                     Node* exp2) {
+void ManageIR::relop(BiNode* p_binode, const string& op, Node* exp1, Node* exp2) {
     int* r1 = &(exp1->reg_num);
     int* r2 = &(exp2->reg_num);
     const string& ty1 = exp1->type;
@@ -190,19 +187,44 @@ void ManageIR::relop(BiNode* p_binode,
 
 }
 
-void ManageIR::binop(const string &op, Node* exp1, Node* exp2,
-                     Node* p_res_node) {
+void ManageIR::check_zero_div(Node* exp2) {
+    Reg reg = new_temp();
+    cbr.emit("\t" + reg.name + " = icmp eq " + to_llvm_type(exp2->type) +
+             num2name(exp2->reg_num, exp2->is_arg) + ", 0");
+    int loc = cbr.emit("\tbr i1 " + reg.name + ", label @, label @");
+    auto true_list = cbr.makelist({loc, FIRST});
+    auto false_list = cbr.makelist({loc, SECOND});
+    string true_label = cbr.genLabel();
+    auto str_ptr = new_temp();
+    getelement_string("Error division by zero", str_ptr.name);
+    cbr.emit("\tcall void @print(i8*" + str_ptr.name + ")");
+    auto temp_int = new_temp();
+    cbr.emit("\t" + temp_int.name + " = add i32 0, 0");
+    cbr.emit("\tcall void @exit(i32" + temp_int.name + ")");
+    int false_loc = cbr.emit("\tbr label @");
+    false_list = cbr.merge(false_list, cbr.makelist({false_loc, FIRST}));
+    string false_label = cbr.genLabel();
+    cbr.bpatch(true_list, true_label);
+    cbr.bpatch(false_list, false_label);
+}
+
+void ManageIR::binop(const string &op, Node* exp1, Node* exp2, Node* p_res_node) {
     int* r1 = &(exp1->reg_num);
     int* r2 = &(exp2->reg_num);
     const string &op_type = p_res_node->type;
     zext_if_needed(exp1, exp2, op_type);
     auto reg = new_temp();
+
     p_res_node->reg_num = reg.num;
 
-
-
     string cmd = "\t" + reg.name + " = ";
-    if (op == "DIV") cmd += "sdiv";
+    if (op == "DIV") {
+        check_zero_div(exp2);
+        if (op_type == "BYTE")
+            cmd += "udiv";
+        else
+            cmd += "sdiv";
+    }
     else cmd += to_lower(op);
     cmd += " " + to_llvm_type(op_type) + " " + num2name(*r1, exp1->is_arg) + ", " + num2name(*r2, exp2->is_arg);
     cbr.emit(cmd);
@@ -226,9 +248,10 @@ void ManageIR::load_local_var(int offset, const string &type, Node *pNode) {
         pNode->reg_num = reg.num;
 }
 
-void ManageIR::store_local_var(int offset, const string& ltype, Node* left_pNode, const string& rtype) {
+void ManageIR::store_local_var(int offset, const string& ltype, Node* left_pNode, const string& rtype, Node* exp) {
     auto ptr = getelement_from_stack(offset);
-    auto reg = regs.at(regs.size() - 2);
+//    auto reg = regs.at(regs.size() - 2);
+    Reg reg = Reg(exp->reg_num, num2name(exp->reg_num, exp->is_arg));
     if (ltype != "INT") {
         auto reg2 = new_temp();
         cbr.emit("\t" + reg2.name + " = zext " + to_llvm_type(ltype) + " " + reg.name + " to i32");
@@ -271,11 +294,6 @@ void ManageIR::icmp_bool_var(BiNode* p_binode, Node* exp) {
     p_binode->false_list = cbr.merge(p_binode->false_list, cbr.makelist({loc, SECOND}));
 
 }
-//void ManageIR::temp_bool_reg(const string& one_or_zero) {
-//    Reg reg = new_temp();
-//    cbr.emit("\t" + reg.name + " = add i1 " + one_or_zero + ", 0");
-//
-//}
 
 void ManageIR::bpatch_if_else_statement(Node* s,
                                         Node* n,
