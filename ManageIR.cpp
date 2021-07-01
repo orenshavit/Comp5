@@ -117,7 +117,7 @@ void ManageIR::push_string_to_emitGlobal(const string &id, const string &type){
     auto size = id.size();
     auto string_val = id.substr(1,id.size() -2);
     auto name = str2name(id);
-    auto str = "@." + name + " = internal constant [" +  to_string(size) + " x i8] c\"" + string_val + "\\0A\\00\"";
+    auto str = "@." + name + " = internal constant [" +  to_string(size) + " x i8] c\"" + string_val + " \\00\" ";
     cbr.emitGlobal(str);
 }
 
