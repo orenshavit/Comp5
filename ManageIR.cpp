@@ -189,7 +189,7 @@ void ManageIR::relop(BiNode* p_binode, const string& op, Node* exp1, Node* exp2)
 
 void ManageIR::check_zero_div(Node* exp2) {
     Reg reg = new_temp();
-    cbr.emit("\t" + reg.name + " = icmp eq " + to_llvm_type(exp2->type) +
+    cbr.emit("\t" + reg.name + " = icmp eq " + to_llvm_type(exp2->type) + " " +
              num2name(exp2->reg_num, exp2->is_arg) + ", 0");
     int loc = cbr.emit("\tbr i1 " + reg.name + ", label @, label @");
     auto true_list = cbr.makelist({loc, FIRST});
