@@ -274,7 +274,7 @@ Call : ID LPAREN ExpList RPAREN{
                                     $$ = new BiNode();
                                 }
                                 $$->type = type;
-                                $$->reg_num = ir.call_func($1->id, $$->type, called_exps, $3);
+                                $$->reg_num = ir.call_func($1->id, $$->type, called_exps, hash_funcs, $3);
                                 if (type == "BOOL") {
                                     ir.icmp_bool_var((BiNode*)$$, $$);
                                 }
@@ -286,7 +286,7 @@ Call : ID LPAREN ExpList RPAREN{
                                     $$ = new BiNode();
                                 }
                                 $$->type = type;
-                                $$->reg_num = ir.call_func($1->id, $$->type, called_exps);
+                                $$->reg_num = ir.call_func($1->id, $$->type, called_exps, hash_funcs);
                                 if (type == "BOOL") {
                                     ir.icmp_bool_var((BiNode*)$$, $$);
                                 }

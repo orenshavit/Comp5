@@ -70,7 +70,6 @@ void ManageIR::gen_label_and_goto_it(Node* s) {
 void ManageIR::end_func(const string &ret_type, Node* s) {
     gen_label_and_goto_it(s);
     if (ret_type == "VOID") {
-        gen_label_and_goto_it(s);
         cbr.emit("\tret void");
     }
     else {
@@ -112,7 +111,6 @@ void ManageIR::push_string_to_emitGlobal(const string &id, const string &type){
     auto str = "@." + string_val + "_str = internal constant [" +  to_string(size) + " x i8] c\"" + string_val + "\\0A\\00\"";
     cbr.emitGlobal(str);
 }
-
 
 void ManageIR::emit_print_functions() {
     cbr.printGlobalBuffer();
@@ -386,12 +384,39 @@ void ManageIR::cl_c_rule(CL *cl, Node *given_c) {
     cl->next_list = c->next_list;
 }
 
+vector<Node*> ManageIR::cast_bytes_to_ints(const string &id, stack<Node*> &args,
+                       vector<string>& exp_func_args) {
+    vector<Node*>args_vec;
+    while (!args.empty()) {
+        args_vec.push_back(args.top());
+        args.pop();
+    }
+
+    for (uint i = 0; i < exp_func_args.size(); i++) {
+        Node* called_exp = args_vec.at(i);
+        string exp_type = exp_func_args.at(i);
+        string called_type = called_exp->type;
+        if (exp_type != called_type) {
+            if (exp_type == "INT" && called_type == "BYTE") {
+                Reg reg = new_temp();
+                cbr.emit("\t" + reg.name + " = zext i8 " + num2name(called_exp->reg_num, called_exp->is_arg) + " to i32");
+                called_exp->reg_num = reg.num;
+            }
+        }
+    }
+    return args_vec;
+}
+
 int ManageIR::call_func(const string &id,
                         const string &ret_type,
                         stack<Node*> &args,
+                        unordered_map<string, FuncTypes>& hash_funcs,
                         Node* exp_list) {
     if (exp_list != nullptr && !exp_list->next_list.empty())
         cbr.bpatch(exp_list->next_list, cbr.genLabel());
+
+    vector<string> exp_func_args = hash_funcs[id].arg_types;
+    vector<Node*> args_vec = cast_bytes_to_ints(id, args, exp_func_args);
 
     string cmd = "\t";
     Reg ret_reg = new_temp();
@@ -399,14 +424,22 @@ int ManageIR::call_func(const string &id,
         cmd += ret_reg.name + " = ";
     }
     cmd += "call " + to_llvm_type(ret_type) + " @" + id + "(";
-    while (!args.empty()) {
-        auto arg = args.top();
-        cmd += to_llvm_type(arg->type) + num2name(arg->reg_num, arg->is_arg);
-        if (args.size() != 1) cmd += ", ";
-        args.pop();
+    for (uint i = 0 ; i < args_vec.size(); i ++) {
+        Node* arg = args_vec.at(i);
+        string type = arg->type;
+        if (type == "BYTE" and exp_func_args.at(i) == "INT")
+            type = "INT";
+        cmd += to_llvm_type(type);
+        cmd += num2name(arg->reg_num, arg->is_arg);
+        if (i != args_vec.size() - 1) cmd += ", ";
     }
     cmd += ")";
     cbr.emit(cmd);
+    args = {};
+
+
+
+
     return ret_reg.num;
 }
 
@@ -443,9 +476,6 @@ int ManageIR::get_called_bool_exp(Node* exp, Node* exp_list) {
 void ManageIR::explist_exp(Node *exp, stack<Node *> &called_exps,
                            stack<string> &called_arg_types, Node* exp_list) {
     cbr.emit("; ExpList : Exp");
-//    string next_label = dynamic_cast<M*>(m)->label;
-//    cbr.bpatch(n->next_list, next_label);
-    BiNode* bi_exp = dynamic_cast<BiNode*>(exp);
     called_arg_types.push(exp->type);
     exp->reg_num = get_called_bool_exp(exp, exp_list);
     if (exp_list != nullptr){
