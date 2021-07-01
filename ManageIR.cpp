@@ -247,7 +247,6 @@ void ManageIR::load_local_var(int offset, const string &type, Node *pNode) {
     } else
         pNode->reg_num = reg.num;
 }
-
 void ManageIR::store_local_var(int offset, const string& ltype, Node* left_pNode, const string& rtype, Node* exp) {
     auto ptr = getelement_from_stack(offset);
 //    auto reg = regs.at(regs.size() - 2);
@@ -256,11 +255,13 @@ void ManageIR::store_local_var(int offset, const string& ltype, Node* left_pNode
         auto reg2 = new_temp();
         cbr.emit("\t" + reg2.name + " = zext " + to_llvm_type(ltype) + " " + reg.name + " to i32");
         reg = reg2;
+        left_pNode->is_arg = false;
     }
     if (ltype == "INT" and rtype == "BYTE") {
         auto reg3 = new_temp();
         cbr.emit("\t" + reg3.name + " = zext i8 " + reg.name + " to i32");
         reg = reg3;
+        left_pNode->is_arg = false;
     }
     left_pNode->reg_num = reg.num;
     cbr.emit("\tstore i32 " + reg.name + ", i32* " + ptr.name);
@@ -436,6 +437,7 @@ vector<Node*> ManageIR::cast_bytes_to_ints(const string &id, stack<Node*> &args,
                 Reg reg = new_temp();
                 cbr.emit("\t" + reg.name + " = zext i8 " + num2name(called_exp->reg_num, called_exp->is_arg) + " to i32");
                 called_exp->reg_num = reg.num;
+                called_exp->is_arg = false;
             }
         }
     }

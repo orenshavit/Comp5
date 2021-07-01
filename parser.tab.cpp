@@ -92,7 +92,7 @@
 	extern char* yytext;
 
 	void yyerror(const char*);
-	void new_var(const string& id, const string& ltype, Node* pNode, const string& rtype);
+	void new_var(const string& id, const string& ltype, Node* pNode, const string& rtype, Node* exp = nullptr);
 	void new_formal(const string& id, int offset, const string& type);
 	void new_table();
 	void new_func(const string& id, const string& retType, vector<string>& argTypes);
@@ -1438,7 +1438,7 @@ yyreduce:
                 if (ltype == "BOOL") {
                     yyvsp[-3]->reg_num = ir.get_bool_into_reg(dynamic_cast<BiNode*>(yyvsp[-1]));
                 }
-                new_var(yyvsp[-3]->id, ltype, yyvsp[-3], rtype);
+                new_var(yyvsp[-3]->id, ltype, yyvsp[-3], rtype, yyvsp[-1]);
 				ir.goto_next_of_s(yyval);
 				}
 #line 1445 "parser.tab.cpp"
@@ -1453,9 +1453,9 @@ yyreduce:
 					if (!(ltype == "INT" && rtype == "BYTE")) MISMATCH 
 				}
 				if (ltype == "BOOL") {
-                    yyvsp[-2]->reg_num = ir.get_bool_into_reg(dynamic_cast<BiNode*>(yyvsp[-1]));
+                    yyvsp[-3]->reg_num = ir.get_bool_into_reg(dynamic_cast<BiNode*>(yyvsp[-1]));
                 }
-                ir.store_local_var(get_offset(yyvsp[-3]->id), ltype, yyvsp[-3], rtype);
+                ir.store_local_var(get_offset(yyvsp[-3]->id), ltype, yyvsp[-3], rtype,yyvsp[-1]);
 				ir.goto_next_of_s(yyval);
 				}
 #line 1462 "parser.tab.cpp"
@@ -1856,7 +1856,7 @@ yyreduce:
 #line 407 "parser.ypp"
                          {
 				yyval->type = "STRING";
-				ir.push_string_to_emitGlobal(yyval->id, yyval->type);
+				ir.push_string_to_emitGlobal(yyval->id);
 				ir.assign_reg("i8", yyval->value, yyval);
 				}
 #line 1863 "parser.tab.cpp"
@@ -2224,10 +2224,10 @@ void new_formal(const string& id, int offset, const string& type) {
 	add_id_to_ids(id, p_entry);
 }
 
-void new_var(const string& id, const string& ltype, Node* pNode, const string& rtype) {
+void new_var(const string& id, const string& ltype, Node* pNode, const string& rtype, Node* exp) {
 	check_id_def(id);
 	TableEntry* p_entry = tables_stack.top()->insert(id, offset_stack.top(), ltype);
-	ir.store_local_var(offset_stack.top(), ltype, pNode, rtype);
+	ir.store_local_var(offset_stack.top(), ltype, pNode, rtype, exp);
 	offset_stack.top()++;
 	add_id_to_ids(id, p_entry);
 }
@@ -2282,8 +2282,8 @@ int main() {
 		new_func("print", "VOID", print_args);
 		vector<string> printi_args = {"INT"};
 		new_func("printi", "VOID", printi_args);
+		ir.push_string_to_emitGlobal(" Error division by zero ");
 		yyparse();
-
 		ir.emit_print_functions();
 		SymbolsTable* global_symbol_table = tables_stack.top();
 		bool found = false;
