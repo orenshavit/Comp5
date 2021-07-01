@@ -604,7 +604,7 @@ int main() {
 		new_func("print", "VOID", print_args);
 		vector<string> printi_args = {"INT"};
 		new_func("printi", "VOID", printi_args);
-		ir.push_string_to_emitGlobal(" Error division by zero ");
+		ir.push_string_to_emitGlobal("\"Error division by zero\"");
 		yyparse();
 		ir.emit_print_functions();
 		SymbolsTable* global_symbol_table = tables_stack.top();
