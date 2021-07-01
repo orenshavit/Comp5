@@ -187,6 +187,7 @@ Statement : LBRACE Statements RBRACE {
 				ir.goto_next_of_s($$);}
 			| RETURN SC {
 				if (current_func.ret_type != "VOID") MISMATCH
+				cbr.emit("\tret void");
 				ir.goto_next_of_s($$);
 				}
 			| RETURN Exp SC {
