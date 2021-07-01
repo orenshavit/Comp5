@@ -255,7 +255,8 @@ void ManageIR::load_local_var(int offset, const string &type, Node *pNode) {
         pNode->reg_num = reg.num;
 }
 
-void ManageIR::store_local_var(int offset, const string& ltype, Node* left_pNode, const string& rtype, Node* exp) {
+void ManageIR::store_local_var(int offset, const string& ltype, Node* left_pNode,
+                               const string& rtype, Node* exp) {
     auto ptr = getelement_from_stack(offset);
     Reg reg = Reg(0, "");
     if (exp) {
@@ -506,7 +507,7 @@ int ManageIR::get_bool_into_reg(BiNode* p_binode, Node* exp_list) {
 
     cbr.bpatch(p_binode->true_list, true_label);
     cbr.bpatch(p_binode->false_list, false_label);
-
+    p_binode->reg_num = phi_reg.num;
     return phi_reg.num;
 }
 
