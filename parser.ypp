@@ -197,7 +197,7 @@ Statement : LBRACE Statements RBRACE {
 					$2->reg_num = bool_reg_num;
 					$2->is_arg = false;
 				}
-				ir.return_exp($2, $2->type);
+				ir.return_exp($2, $2->type, current_func.ret_type);
 				// ? goto_next_of_s ?
 			}
 			| IF LPAREN MarkerBoolExp RPAREN M Statement MarkerELSE N M Statement {

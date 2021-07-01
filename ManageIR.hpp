@@ -64,7 +64,7 @@ public:
                Node* exp1,
                Node* exp2);
     void gen_label_and_goto_it(Node* s);
-    void return_exp(Node* exp, const string& ty);
+    void return_exp(Node* exp, const string& ty, const string& ret_ty);
     void icmp_bool_var(BiNode* p_binode, Node* exp);
     int get_bool_into_reg(BiNode* p_binode, Node* exp_list = nullptr);
     void emit_switch(Node* s, Node* exp, Node* n, Node* given_cl, Node* given_m,

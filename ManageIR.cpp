@@ -298,14 +298,14 @@ static string op2llvm(const string& op) {
     return "sge ";
 }
 
-void ManageIR::return_exp(Node* exp, const string& ty) {
-    if (exp->type == "BYTE" and ty == "INT") {
+void ManageIR::return_exp(Node* exp, const string& ty, const string& ret_ty) {
+    if (exp->type == "BYTE" and ret_ty == "INT") {
         Reg reg = new_temp();
         cbr.emit("\t" + reg.name + " = zext i8 " + num2name(exp->reg_num, exp->is_arg) + " to i32");
         exp->reg_num = reg.num;
         exp->is_arg = false;
     }
-    cbr.emit("\tret " + to_llvm_type(ty) + " " + num2name(exp->reg_num, exp->is_arg));
+    cbr.emit("\tret " + to_llvm_type(ret_ty) + " " + num2name(exp->reg_num, exp->is_arg));
 }
 
 void ManageIR::icmp_bool_var(BiNode* p_binode, Node* exp) {
