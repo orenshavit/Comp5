@@ -195,6 +195,7 @@ Statement : LBRACE Statements RBRACE {
 				if ($2->type == "BOOL") {
 					int bool_reg_num = ir.get_bool_into_reg(dynamic_cast<BiNode*>($2));
 					$2->reg_num = bool_reg_num;
+					$2->is_arg = false;
 				}
 				ir.return_exp($2, $2->type);
 				// ? goto_next_of_s ?
