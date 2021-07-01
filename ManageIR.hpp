@@ -3,6 +3,7 @@
 #include <vector>
 #include <map>
 #include <iostream>
+#include <bits/stdc++.h>
 
 #include "SymbolsTable.hpp"
 #include "bp.hpp"
@@ -31,7 +32,8 @@ public:
     void push_string_to_emitGlobal(const string &id, const string &type);
     void getelement_string_from_stack(const string &id,  const string &reg_name);
     void emit_print_functions();
-    int call_func(const string& id, const string& ret_type, stack<Node*> &args, Node* exp_list = nullptr);
+    int call_func(const string& id, const string& ret_type, stack<Node*> &args,
+                  unordered_map<string, FuncTypes>& hash_funcs, Node* exp_list = nullptr);
     string to_llvm_type(const string& type);
     string str2name(const string& str1);
     void binop(const string &op, Node* exp1, Node* exp2,
@@ -78,4 +80,5 @@ public:
     void explist_exp_explist(Node* first_exp_list, Node* exp, Node* n, const string& m_label, Node* exp_list,
                              stack<Node *> &called_exps,
                              stack<string> &called_arg_types);
+    vector<Node*> cast_bytes_to_ints(const string &id, stack<Node*> &args, vector<string>& exp_func_args);
 };

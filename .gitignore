@@ -2,5 +2,8 @@
 cmake-build-debug/
 cmake-build-wsl_profile/
 lex.yy.c
-tests/hw5
+parser.tab.hpp
+parser.tab.cpp
+tests/*
 hw5
+ot1.llvm
