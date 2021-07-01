@@ -247,10 +247,17 @@ void ManageIR::load_local_var(int offset, const string &type, Node *pNode) {
     } else
         pNode->reg_num = reg.num;
 }
+
 void ManageIR::store_local_var(int offset, const string& ltype, Node* left_pNode, const string& rtype, Node* exp) {
     auto ptr = getelement_from_stack(offset);
-//    auto reg = regs.at(regs.size() - 2);
-    Reg reg = Reg(exp->reg_num, num2name(exp->reg_num, exp->is_arg));
+    Reg reg = Reg(0, "");
+    if (exp) {
+        reg.num = exp->reg_num;
+        reg.name = num2name(exp->reg_num, exp->is_arg);
+    }
+    else
+        reg = regs.at(regs.size() - 2);
+
     if (ltype != "INT") {
         auto reg2 = new_temp();
         cbr.emit("\t" + reg2.name + " = zext " + to_llvm_type(ltype) + " " + reg.name + " to i32");
