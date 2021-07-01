@@ -592,8 +592,6 @@ void remove_table() {
 }
 
 void end_of_scope_operations() {
-		// output::endScope();
-		// tables_stack.top()->print_ids();
 		remove_table();
 		if (!offset_stack.empty()) {
 				offset_stack.pop();
@@ -609,7 +607,6 @@ int main() {
 		new_func("printi", "VOID", printi_args);
 		ir.push_string_to_emitGlobal("\"Error division by zero\"");
 		yyparse();
-		ir.emit_print_functions();
 		SymbolsTable* global_symbol_table = tables_stack.top();
 		bool found = false;
 		for (TableEntry* entry : global_symbol_table->entries) {
@@ -620,6 +617,7 @@ int main() {
 			output::errorMainMissing();
 			exit(0);
 		}
+		ir.emit_print_functions();
 		end_of_scope_operations();
 		
 		cbr.printCodeBuffer();
