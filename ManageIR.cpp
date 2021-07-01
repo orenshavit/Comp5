@@ -155,11 +155,13 @@ void ManageIR::zext_if_needed(Node* exp1, Node* exp2, const string &op_type) {
             Reg reg = new_temp();
             cbr.emit("\t" + reg.name + " = zext i8 " + num2name(*r1, exp1->is_arg) + " to i32");
             *r1 = reg.num;
+            exp1->is_arg = false;
         }
         if (ty2 == "BYTE") {
             Reg reg = new_temp();
             cbr.emit("\t" + reg.name + " = zext i8 " + num2name(*r2, exp2->is_arg) + " to i32");
             *r2 = reg.num;
+            exp1->is_arg = false;
         }
     }
 }

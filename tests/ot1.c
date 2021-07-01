@@ -1,23 +1,13 @@
-void printByValue(bool val) {
-	if (val)
-		print("val is true");
-	else {
-		print("val is false");
-	}
+int fib(int n) {
+    if (n == 0 or n == 1) return 1;
+    return fib(n-1) + fib(n-2);
 }
 
 void main() {
-	printByValue(true);
-	printByValue(false);
-
-	if(true)
-    {
-        print("true");
+    byte i = 0b;
+    while (i < 10) {
+        printi(fib(i));
+        i = i + 1b;
     }
-
-    if(false or false and  true)
-    {
-        print("true");
-    }
-    
+    print("*");
 }
