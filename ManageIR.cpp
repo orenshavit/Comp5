@@ -189,10 +189,19 @@ void ManageIR::relop(BiNode* p_binode, const string& op, Node* exp1, Node* exp2)
 }
 
 void ManageIR::check_zero_div(Node* exp2) {
-    Reg reg = new_temp();
-    cbr.emit("\t" + reg.name + " = icmp eq " + to_llvm_type(exp2->type) + " " +
-             num2name(exp2->reg_num, exp2->is_arg) + ", 0");
-    int loc = cbr.emit("\tbr i1 " + reg.name + ", label @, label @");
+    Reg icmp_reg = new_temp();
+    Reg temp = new_temp();
+    if (exp2->type != "INT")
+        cbr.emit("\t" + temp.name + " = zext " +
+                    to_llvm_type(exp2->type)+ " " + num2name(exp2->reg_num, exp2->is_arg) + " to i32");
+    else
+        temp = Reg(exp2->reg_num, num2name(exp2->reg_num, exp2->is_arg));
+//    else
+//        cbr.emit("\t" + temp.name + " = add " + to_llvm_type(exp2->type) + " " + temp.name + ", 0");
+
+    cbr.emit("\t" + icmp_reg.name + " = icmp eq i32" + " " +
+             temp.name + ", 0");
+    int loc = cbr.emit("\tbr i1 " + icmp_reg.name + ", label @, label @");
     auto true_list = cbr.makelist({loc, FIRST});
     auto false_list = cbr.makelist({loc, SECOND});
     string true_label = cbr.genLabel();
@@ -210,17 +219,15 @@ void ManageIR::check_zero_div(Node* exp2) {
 }
 
 void ManageIR::binop(const string &op, Node* exp1, Node* exp2, Node* p_res_node) {
+    if (op== "DIV") check_zero_div(exp2);
     int* r1 = &(exp1->reg_num);
     int* r2 = &(exp2->reg_num);
     const string &op_type = p_res_node->type;
     zext_if_needed(exp1, exp2, op_type);
     auto reg = new_temp();
-
     p_res_node->reg_num = reg.num;
-
     string cmd = "\t" + reg.name + " = ";
     if (op == "DIV") {
-        check_zero_div(exp2);
         if (op_type == "BYTE")
             cmd += "udiv";
         else
