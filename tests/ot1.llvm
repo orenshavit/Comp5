@@ -1,61 +1,78 @@
-define void @foo(i1, i1) {
+define void @foo(i32, i1, i32, i1) {
 	%st_ptr = alloca i32, i32 50
-	br label %label_3
-label_3:
-	%t0 = add i32 3, 0
+; Exp : ID
+	%t0 = icmp eq i1 %1, 1
+	br i1 %t0, label %label_5, label %label_24
+label_5:
+; Exp : ID
+	%t1 = icmp eq i1 %3, 1
+	br i1 %t1, label %label_9, label %label_24
+label_9:
+; Exp : ID
+; Exp : ID
+	%t2 = add i32 %0, %2
+	%t3 = add i32 2, 0
+	%t4 = add i32 %t2, %t3
+	%t5 = add i32 2, 0
+	%t6 = sub i32 %t4, %t5
 ; ExpList : Exp
+	br label %label_20
 ; Call : ID LPAREN ExpList RPAREN
-	call void @printi(i32%t0)
-	br label %label_10
-	br label %label_10
-label_10:
+label_20:
+	call void @printi(i32%t6)
+	br label %label_24
+	br label %label_24
+label_24:
 	ret void
 }
 
 define void @main() {
 	%st_ptr = alloca i32, i32 50
-	%t2 = add i32 3, 0
-; S->Type ID ASSIGN Exp SC
-	%t3 = getelementptr i32, i32* %st_ptr, i32 0
-	store i32 %t2, i32* %t3
-	br label %label_21
-label_21:
-	%t4 = add i32 3, 0
-; S->Type ID ASSIGN Exp SC
-	%t5 = getelementptr i32, i32* %st_ptr, i32 1
-	store i32 %t4, i32* %t5
-	br label %label_27
-label_27:
-	%t6 = add i32 5, 0
-	%t7 = add i32 10, 0
-; Exp: Exp RELATION Exp
-	%t8 = icmp slt i32 %t6, %t7
-	br i1 %t8, label %label_48, label %label_50
-	%t9 = add i32 2, 0
-	%t10 = add i32 3, 0
+	%t8 = add i32 9, 0
+	br label %label_32
+label_32:
+	%t9 = add i32 5, 0
+	%t10 = add i32 10, 0
 ; Exp: Exp RELATION Exp
 	%t11 = icmp slt i32 %t9, %t10
-	br i1 %t11, label %label_40, label %label_42
+	br i1 %t11, label %label_61, label %label_63
+	br label %label_39
+label_39:
+	%t12 = add i32 1, 0
+	br label %label_42
+label_42:
+	%t13 = add i32 2, 0
+	%t14 = add i32 3, 0
+; Exp: Exp RELATION Exp
+	%t15 = icmp slt i32 %t13, %t14
+	br i1 %t15, label %label_50, label %label_52
 ; ExpList : Exp
 	; Getting Bool Using Phi
-label_40:
-	br label %label_44
-label_42:
-	br label %label_44
-label_44:
-	%t12 = phi i1 [1, %label_40], [0, %label_42]
-; ExpList : Exp COMMA ExpList 
-	; Getting Bool Using Phi
-label_48:
-	br label %label_52
 label_50:
-	br label %label_52
+	br label %label_54
 label_52:
-	%t13 = phi i1 [1, %label_48], [0, %label_50]
+	br label %label_54
+label_54:
+	%t16 = phi i1 [1, %label_50], [0, %label_52]
+	br label %label_71
+; ExpList : Exp COMMA N M ExpList and M label is label_42
+	br label %label_42
+; ExpList : Exp COMMA N M ExpList and M label is label_39
+	; Getting Bool Using Phi
+label_61:
+	br label %label_65
+label_63:
+	br label %label_65
+label_65:
+	%t17 = phi i1 [1, %label_61], [0, %label_63]
+	br label %label_39
+; ExpList : Exp COMMA N M ExpList and M label is label_32
+	br label %label_32
 ; Call : ID LPAREN ExpList RPAREN
-	call void @foo(i1%t13, i1%t12)
-	br label %label_57
-label_57:
+label_71:
+	call void @foo(i32%t8, i1%t17, i32%t12, i1%t16)
+	br label %label_74
+label_74:
 	ret void
 }
 

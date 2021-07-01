@@ -249,6 +249,7 @@ N : {
 	$$ = new Node();
 	int loc = cbr.emit("\tbr label @");
 	$$->next_list = cbr.makelist(pair<int,BranchLabelIndex>(loc, FIRST));};
+
 MarkerWhile : {
 	in_while.push(true);
 	cont_lists_stack.push({});
@@ -266,14 +267,14 @@ MarkerBoolExp : Exp {
 	if ($1->type != "BOOL") MISMATCH};
 
 MarkerELSE : ELSE {end_of_scope_operations();};
-Call : ID LPAREN ExpList RPAREN {
+Call : ID LPAREN ExpList RPAREN{
                                 cbr.emit("; Call : ID LPAREN ExpList RPAREN");
                                 const string& type =  check_func_return_type($1->id);
                                 if (type == "BOOL") {
                                     $$ = new BiNode();
                                 }
                                 $$->type = type;
-                                $$->reg_num = ir.call_func($1->id, $$->type, called_exps);
+                                $$->reg_num = ir.call_func($1->id, $$->type, called_exps, $3);
                                 if (type == "BOOL") {
                                     ir.icmp_bool_var((BiNode*)$$, $$);
                                 }
@@ -292,17 +293,12 @@ Call : ID LPAREN ExpList RPAREN {
 							}
 		;
 		
-ExpList : Exp  {
-            cbr.emit("; ExpList : Exp");
-			called_arg_types.push($1->type);
-		    $1->reg_num = ir.get_called_bool_exps($1);
-			called_exps.push($1);
+ExpList : Exp {
+            ir.explist_exp($1, called_exps, called_arg_types, $$);
 			}
-		| Exp COMMA ExpList {
-		    cbr.emit("; ExpList : Exp COMMA ExpList ");
-			called_arg_types.push($1->type);
-			$1->reg_num = ir.get_called_bool_exps($1);
-			called_exps.push($1);
+		| Exp COMMA N M ExpList {
+		        ir.explist_exp_explist($$, $1, $3, dynamic_cast<M*>($4)->label, $5,
+		        called_exps, called_arg_types);
 			}
 		;
 Type : INT { 
@@ -339,16 +335,18 @@ Exp :
 		| Exp RELATION Exp {
 		    cbr.emit("; Exp: Exp RELATION Exp");
 			check_numeric($1, $3);
+
 			$$ = new BiNode();
 			$$->type = "BOOL";
-			ir.relop((BiNode*)$$, $2->type, $1, $3);
+			dynamic_cast<BiNode*>($$)->type = "BOOL";
+			ir.relop(dynamic_cast<BiNode*>($$), $2->type, $1, $3);
 
 			}
 		| Exp EQUALITY Exp {
 				check_numeric($1, $3);
 				$$ = new BiNode();
 				$$->type = "BOOL";
-				ir.relop((BiNode*)$$, $2->type, $1, $3);
+				ir.relop(dynamic_cast<BiNode*>($$), $2->type, $1, $3);
 				}
 		| Exp AND M Exp {if ($1->type != "BOOL" || $4->type != "BOOL") MISMATCH
 				$$ = new BiNode();
