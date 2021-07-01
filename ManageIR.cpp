@@ -299,6 +299,12 @@ static string op2llvm(const string& op) {
 }
 
 void ManageIR::return_exp(Node* exp, const string& ty) {
+    if (exp->type == "BYTE" and ty == "INT") {
+        Reg reg = new_temp();
+        cbr.emit("\t" + reg.name + " = zext i8 " + num2name(exp->reg_num, exp->is_arg) + " to i32");
+        exp->reg_num = reg.num;
+        exp->is_arg = false;
+    }
     cbr.emit("\tret " + to_llvm_type(ty) + " " + num2name(exp->reg_num, exp->is_arg));
 }
 
