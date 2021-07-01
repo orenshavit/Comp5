@@ -185,8 +185,9 @@ Statement : LBRACE Statements RBRACE {
 			| Call SC {
 				ir.goto_next_of_s($$);}
 			| RETURN SC {
-				if (current_func.ret_type != "VOID") MISMATCH}
-				// ? goto_next_of_s ?}
+				if (current_func.ret_type != "VOID") MISMATCH
+				ir.goto_next_of_s($$);
+				}
 			| RETURN Exp SC {
 				if (current_func.ret_type == "VOID") MISMATCH
 				if (current_func.ret_type != $2->type && !(current_func.ret_type == "INT" && $2->type == "BYTE")) MISMATCH
